@@ -10,25 +10,15 @@ interface Props {
 export default function StatCounter({ label, value, onInc, onDec }: Props) {
   return (
     <div>
-      <p className="text-[10px] tracking-wider text-slate-400 font-bold mb-1.5">
-        {label.toUpperCase()}
-      </p>
+      <p className="mb-1.5 text-[10px] font-bold tracking-[0.14em] text-muted">{label.toUpperCase()}</p>
       <div className="flex items-center gap-2">
-        <button
-          onClick={onDec}
-          className="h-9 w-9 shrink-0 rounded-lg bg-danger/10 border border-danger/30 text-danger hover:bg-danger/20 hover:shadow-[0_0_12px_-2px_rgba(251,113,133,0.6)] flex items-center justify-center transition-all"
-          aria-label={`Diminuir ${label}`}
-        >
+        <button type="button" onClick={onDec} className="btn-press flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-danger/30 bg-danger/10 text-danger hover:bg-danger/20" aria-label={`Diminuir ${label}`}>
           <Minus size={16} />
         </button>
-        <div className="font-tech flex-1 h-9 rounded-lg bg-black/40 border border-primary/20 flex items-center justify-center font-bold text-lg text-white">
-          {value}
+        <div className="stat-well font-tech flex h-11 flex-1 items-center justify-center rounded-xl text-lg font-bold tabular-nums text-ink">
+          <span key={value} className="num-pop">{value}</span>
         </div>
-        <button
-          onClick={onInc}
-          className="h-9 w-9 shrink-0 rounded-lg bg-success/10 border border-success/30 text-success hover:bg-success/20 hover:shadow-[0_0_12px_-2px_rgba(52,211,153,0.6)] flex items-center justify-center transition-all"
-          aria-label={`Aumentar ${label}`}
-        >
+        <button type="button" onClick={onInc} className="btn-press flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-success/30 bg-success/10 text-success hover:bg-success/20" aria-label={`Aumentar ${label}`}>
           <Plus size={16} />
         </button>
       </div>

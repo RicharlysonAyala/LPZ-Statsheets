@@ -2,6 +2,7 @@ import { ArrowLeftRight } from 'lucide-react';
 import type { Lineup, StatFields } from '../types/stats';
 import { ROLE_FIELDS, FIELD_LABELS } from '../types/stats';
 import StatCounter from './StatCounter';
+import RatingRing from './RatingRing';
 import { calculateRating, calculateEfficiency, consistencyLabel } from '../lib/scoring';
 
 const ROLE_STYLES: Record<string, { text: string; dot: string }> = {
@@ -24,25 +25,24 @@ export default function PlayerStatCard({ lineup, onInc, onDec, onOpenSub }: Prop
   const fields = ROLE_FIELDS[lineup.role];
   const rating = calculateRating(lineup.role, lineup.stats);
   const efficiency = calculateEfficiency(lineup.stats);
+  const consistency = consistencyLabel(rating);
   const roleStyle = ROLE_STYLES[lineup.role];
 
   return (
-    <div className="glass-panel group rounded-2xl p-4 flex flex-col gap-4 transition-all hover:border-primary/40 hover:shadow-[0_0_30px_-10px_rgba(56,189,248,0.5)]">
-      <div className="flex items-start justify-between">
-        <div>
-          <p className={`flex items-center gap-1.5 text-[11px] font-tech font-bold tracking-widest ${roleStyle.text}`}>
-            <span className={`h-1.5 w-1.5 rounded-full ${roleStyle.dot} shadow-[0_0_8px_currentColor]`} />
-            {lineup.role.toUpperCase()}
-          </p>
-          <h3 className="text-lg font-extrabold text-white leading-tight mt-0.5">{lineup.player}</h3>
-          {lineup.subInfo && (
-            <p className="text-[10px] text-primary/70 mt-0.5">{lineup.subInfo}</p>
-          )}
+    <article className="hud-panel hud-panel-interactive group flex flex-col gap-4 rounded-[22px] p-4">
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-3">
+          <RatingRing value={rating} />
+          <div className="min-w-0">
+            <p className={`flex items-center gap-1.5 font-tech text-[11px] font-bold tracking-[0.18em] ${roleStyle.text}`}>
+              <span className={`h-1.5 w-1.5 rounded-full ${roleStyle.dot}`} style={{ boxShadow: '0 0 8px currentColor' }} />
+              {lineup.role.toUpperCase()}
+            </p>
+            <h3 className="mt-0.5 truncate text-lg font-extrabold leading-tight text-ink">{lineup.player}</h3>
+            {lineup.subInfo && <p className="mt-0.5 text-[10px] text-primary/80">{lineup.subInfo}</p>}
+          </div>
         </div>
-        <button
-          onClick={onOpenSub}
-          className="flex items-center gap-1 text-[11px] font-semibold text-primary border border-primary/30 bg-primary/5 rounded-lg px-2 py-1 hover:bg-primary/15 hover:shadow-[0_0_12px_-2px_rgba(56,189,248,0.6)] transition-all"
-        >
+        <button type="button" onClick={onOpenSub} className="btn-press flex min-h-11 items-center gap-1 rounded-lg border border-primary/30 bg-primary/5 px-2.5 py-1 text-[11px] font-semibold text-primary hover:bg-primary/15">
           <ArrowLeftRight size={12} /> SUB
         </button>
       </div>
@@ -59,20 +59,25 @@ export default function PlayerStatCard({ lineup, onInc, onDec, onOpenSub }: Prop
         ))}
       </div>
 
-      <div className="grid grid-cols-3 pt-3 border-t border-white/10 text-center">
-        <div>
-          <p className="text-[10px] text-slate-400 font-bold tracking-wide">RATING</p>
-          <p className="font-tech text-warning font-bold">{rating.toFixed(1)}</p>
+      <div className="grid grid-cols-3 gap-2 border-t border-white/8 pt-3">
+        <div className="text-center">
+          <p className="text-[10px] font-bold tracking-[0.14em] text-muted">RATING</p>
+          <p className="font-tech font-bold text-warning tabular-nums">{rating.toFixed(1)}</p>
         </div>
-        <div>
-          <p className="text-[10px] text-slate-400 font-bold tracking-wide">EFICIÊNCIA</p>
-          <p className="font-tech text-cyan font-bold">{efficiency}%</p>
+        <div className="text-center">
+          <p className="text-[10px] font-bold tracking-[0.14em] text-muted">EFICIÊNCIA</p>
+          <p className="font-tech font-bold text-cyan tabular-nums">{efficiency}%</p>
+          <div className="meter-track mx-auto mt-1 max-w-[72px]">
+            <div className="meter-fill bg-cyan" style={{ width: `${Math.min(100, efficiency)}%` }} />
+          </div>
         </div>
-        <div>
-          <p className="text-[10px] text-slate-400 font-bold tracking-wide">CONSISTÊNCIA</p>
-          <p className="font-tech text-warning font-bold">{consistencyLabel(rating)}</p>
+        <div className="text-center">
+          <p className="text-[10px] font-bold tracking-[0.14em] text-muted">CONSISTÊNCIA</p>
+          <p className={`font-tech font-bold ${
+            consistency === 'ALTA' ? 'text-success' : consistency === 'MÉDIA' ? 'text-warning' : consistency === 'BAIXA' ? 'text-danger' : 'text-muted'
+          }`}>{consistency}</p>
         </div>
       </div>
-    </div>
+    </article>
   );
 }

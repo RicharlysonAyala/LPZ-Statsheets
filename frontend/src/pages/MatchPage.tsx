@@ -13,7 +13,7 @@ import type { Role, StatFields } from '../types/stats';
 
 export default function MatchPage() {
   const [activeTab, setActiveTab] = useState<TabKey>(1);
-  const { sets, incrementField, decrementField, activeSet: storeSet, setActiveSet } =
+  const { sets, incrementField, decrementField, setField, renamePlayer, clearPlayerStats, activeSet: storeSet, setActiveSet } =
     useMatchStore();
 
   const [subTarget, setSubTarget] = useState<{ role: Role; player: string } | null>(null);
@@ -48,6 +48,13 @@ export default function MatchPage() {
                   onDec={(field: keyof StatFields) =>
                     decrementField(currentSetNumber, lineup.id, field)
                   }
+                  onSet={(field: keyof StatFields, value: number) =>
+                    setField(currentSetNumber, lineup.id, field, value)
+                  }
+                  onRename={(newName: string) =>
+                    renamePlayer(currentSetNumber, lineup.id, newName)
+                  }
+                  onClear={() => clearPlayerStats(currentSetNumber, lineup.id)}
                   onOpenSub={() => setSubTarget({ role: lineup.role, player: lineup.player })}
                 />
               ))}

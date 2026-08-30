@@ -1,9 +1,67 @@
 import { FileText, MessageSquare, Save, RotateCcw } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { useMatchStore } from '../store/matchStore';
 
+// Número do placar que vira um <input> ao clicar, e volta a ser texto
+// grande (com o brilho "score-glow") quando não está em edição.
+function EditableScore({ value, onCommit }: { value: number; onCommit: (v: number) => void }) {
+  const [editing, setEditing] = useState(false);
+  const [text, setText] = useState(String(value));
+
+  useEffect(() => {
+    if (!editing) setText(String(value));
+  }, [value, editing]);
+
+  function commit() {
+    const parsed = parseInt(text, 10);
+    onCommit(Number.isNaN(parsed) ? 0 : parsed);
+    setEditing(false);
+  }
+
+  if (editing) {
+    return (
+      <input
+        autoFocus
+        type="number"
+        min={0}
+        inputMode="numeric"
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        onFocus={(e) => e.target.select()}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') commit();
+          if (e.key === 'Escape') setEditing(false);
+        }}
+        className="font-tech score-glow w-[1.6em] rounded-lg border border-primary/40 bg-black/30 text-center text-5xl font-extrabold leading-none tabular-nums outline-none focus:ring-2 focus:ring-primary/40 md:text-6xl [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+      />
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={() => setEditing(true)}
+      title="Clique para editar o placar"
+      className="font-tech score-glow rounded-lg text-5xl font-extrabold leading-none tabular-nums transition-opacity hover:opacity-80 md:text-6xl"
+    >
+      {String(value).padStart(2, '0')}
+    </button>
+  );
+}
+
 export default function Scoreboard() {
-  const { scoreHome, scoreAway, resetSet, activeSet, teamHomeName, teamAwayName, format } =
-    useMatchStore();
+  const {
+    scoreHome,
+    scoreAway,
+    resetSet,
+    activeSet,
+    teamHomeName,
+    teamAwayName,
+    format,
+    setScoreHome,
+    setScoreAway,
+  } = useMatchStore();
   const pips = Array.from({ length: format }, (_, i) => i + 1);
 
   return (
@@ -24,9 +82,7 @@ export default function Scoreboard() {
         <div className="flex items-center justify-center gap-5 md:gap-8">
           <div className="text-right">
             <p className="mb-1 text-[10px] font-semibold tracking-[0.2em] text-muted">{teamHomeName.toUpperCase()}</p>
-            <p className="font-tech score-glow text-5xl font-extrabold leading-none tabular-nums md:text-6xl">
-              {String(scoreHome).padStart(2, '0')}
-            </p>
+            <EditableScore value={scoreHome} onCommit={setScoreHome} />
           </div>
           <div className="flex flex-col items-center gap-2 pt-3">
             <span className="font-tech text-sm font-bold text-primary">×</span>
@@ -46,9 +102,7 @@ export default function Scoreboard() {
           </div>
           <div className="text-left">
             <p className="mb-1 text-[10px] font-semibold tracking-[0.2em] text-muted">{teamAwayName.toUpperCase()}</p>
-            <p className="font-tech score-glow text-5xl font-extrabold leading-none tabular-nums md:text-6xl">
-              {String(scoreAway).padStart(2, '0')}
-            </p>
+            <EditableScore value={scoreAway} onCommit={setScoreAway} />
           </div>
         </div>
 

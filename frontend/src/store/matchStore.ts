@@ -32,6 +32,11 @@ interface MatchState {
   setFormat: (f: 3 | 5) => void;
   incrementField: (setNumber: number, lineupId: string, field: keyof StatFields) => void;
   decrementField: (setNumber: number, lineupId: string, field: keyof StatFields) => void;
+  setField: (setNumber: number, lineupId: string, field: keyof StatFields, value: number) => void;
+  renamePlayer: (setNumber: number, lineupId: string, newName: string) => void;
+  clearPlayerStats: (setNumber: number, lineupId: string) => void;
+  setScoreHome: (value: number) => void;
+  setScoreAway: (value: number) => void;
   substitutePlayer: (
     role: Role,
     outPlayer: string,
@@ -77,6 +82,49 @@ export const useMatchStore = create<MatchState>((set, get) => ({
         : l
     );
     set({ sets });
+  },
+
+  // Permite digitar o valor direto no campo (em vez de só usar +/-).
+  // Garante que nunca fique negativo e que só aceite números inteiros.
+  setField: (setNumber, lineupId, field, value) => {
+    const safeValue = Number.isFinite(value) ? Math.max(0, Math.round(value)) : 0;
+    const sets = { ...get().sets };
+    sets[setNumber] = sets[setNumber].map((l) =>
+      l.id === lineupId ? { ...l, stats: { ...l.stats, [field]: safeValue } } : l
+    );
+    set({ sets });
+  },
+
+  // Renomeia o jogador de um slot diretamente no card, sem precisar
+  // passar pela tela de substituição.
+  renamePlayer: (setNumber, lineupId, newName) => {
+    const trimmed = newName.trim();
+    if (!trimmed) return;
+    const sets = { ...get().sets };
+    sets[setNumber] = sets[setNumber].map((l) =>
+      l.id === lineupId ? { ...l, player: trimmed } : l
+    );
+    set({ sets });
+  },
+
+  // Zera todas as estatísticas de UM jogador específico (mantendo o
+  // nome dele), útil quando algo foi lançado errado.
+  clearPlayerStats: (setNumber, lineupId) => {
+    const sets = { ...get().sets };
+    sets[setNumber] = sets[setNumber].map((l) =>
+      l.id === lineupId ? { ...l, stats: { ...EMPTY_STATS } } : l
+    );
+    set({ sets });
+  },
+
+  setScoreHome: (value) => {
+    const safeValue = Number.isFinite(value) ? Math.max(0, Math.round(value)) : 0;
+    set({ scoreHome: safeValue });
+  },
+
+  setScoreAway: (value) => {
+    const safeValue = Number.isFinite(value) ? Math.max(0, Math.round(value)) : 0;
+    set({ scoreAway: safeValue });
   },
 
   substitutePlayer: (role, outPlayer, inPlayer, applyToSets) => {

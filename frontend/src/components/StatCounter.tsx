@@ -25,9 +25,9 @@ export default function StatCounter({ label, value, onInc, onDec, onSet }: Props
   }
 
   return (
-    <div>
+    <div className="min-w-0">
       <p className="mb-1.5 text-[10px] font-bold tracking-[0.14em] text-muted">{label.toUpperCase()}</p>
-      <div className="flex items-center gap-2">
+      <div className="flex min-w-0 items-center gap-2">
         <button
           type="button"
           onClick={onDec}
@@ -37,7 +37,9 @@ export default function StatCounter({ label, value, onInc, onDec, onSet }: Props
           <Minus size={16} />
         </button>
 
-        {/* Campo agora é um input de verdade: clica, apaga e digita o número */}
+        {/* Campo agora é um input de verdade: clica, apaga e digita o número.
+            min-w-0 é essencial aqui: sem ele, o navegador dá uma largura mínima
+            própria pro <input type="number"> e ele "estoura" pra fora do card. */}
         <input
           type="number"
           inputMode="numeric"
@@ -49,7 +51,7 @@ export default function StatCounter({ label, value, onInc, onDec, onSet }: Props
             if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
           }}
           onFocus={(e) => e.target.select()}
-          className="stat-well font-tech h-11 flex-1 rounded-xl text-center text-lg font-bold tabular-nums text-ink outline-none focus:ring-2 focus:ring-primary/50 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+          className="stat-well font-tech h-11 w-full min-w-0 flex-1 rounded-xl text-center text-lg font-bold tabular-nums text-ink outline-none focus:ring-2 focus:ring-primary/50 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
           aria-label={label}
         />
 

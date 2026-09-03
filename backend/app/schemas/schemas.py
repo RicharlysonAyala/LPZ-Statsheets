@@ -39,3 +39,41 @@ class SubstitutionCreate(BaseModel):
     out_player_id: str
     in_player_nickname: str
     apply_to: Literal["current", "current_and_next", "all"] = "current"
+
+# ---------------------------------------------------------------------------
+# Payload do botão "Salvar Partida (Staff)" — vem com TUDO de uma vez:
+# os dois times (por ID de cargo do Discord), o ID de Discord de cada
+# jogador local, e a estatística completa de cada set.
+# ---------------------------------------------------------------------------
+class SaveMatchStatsIn(BaseModel):
+    pontos_feitos: int = 0
+    pontos_tomados: int = 0
+    block: int = 0
+    assistencias: int = 0
+    erro_ofensivo: int = 0
+    erro_defensivo: int = 0
+
+
+class SaveMatchLineupIn(BaseModel):
+    # Vem no formato do front (com acento/maiúscula), ex: "Ds Spiker".
+    # É normalizado pro formato do banco (ex: "ds_spiker") dentro da rota.
+    role: str
+    player_name: str
+    is_substitute: bool = False
+    stats: SaveMatchStatsIn
+
+
+class SaveMatchSetIn(BaseModel):
+    set_number: int
+    score_home: int = 0
+    score_away: int = 0
+    lineups: list[SaveMatchLineupIn]
+
+
+class SaveMatchIn(BaseModel):
+    format: Literal[3, 5]
+    team_home_role_id: str = Field(min_length=1)
+    team_away_role_id: str = Field(min_length=1)
+    # nome local do jogador (como digitado no card) -> ID de Discord dele
+    player_discord_ids: dict[str, str]
+    sets: list[SaveMatchSetIn]

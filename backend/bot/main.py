@@ -1,5 +1,6 @@
 import os
 import discord
+from dotenv import load_dotenv
 from discord import app_commands
 from discord.ext import commands
 from sqlalchemy.orm import Session
@@ -11,6 +12,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 from app.core.database import SessionLocal, Base, engine  # noqa: E402
 from app.models.models import Team, Player  # noqa: E402
 
+load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
 DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
 GUILD_ID = int(os.getenv("DISCORD_GUILD_ID", "0"))  # ID do seu servidor
 

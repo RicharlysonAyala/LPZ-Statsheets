@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.database import Base, engine
 from app.models import models  # noqa: F401 (garante que os modelos são registrados)
-from app.api import teams_players, matches, teams_pages
+from app.api import teams_players, matches, teams_pages, save_match
 
 app = FastAPI(title="Statssheets API", version="0.1.0")
 
@@ -26,9 +26,8 @@ Base.metadata.create_all(bind=engine)
 
 app.include_router(teams_players.router)
 app.include_router(matches.router)
-app.include_router(teams_players.router)
-app.include_router(matches.router)
 app.include_router(teams_pages.router)
+app.include_router(save_match.router)
 
 @app.get("/")
 def health_check():

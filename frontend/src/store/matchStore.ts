@@ -22,8 +22,10 @@ const DEFAULT_ROSTER: [Role, string][] = [
 interface MatchState {
   format: 3 | 5;
   activeSet: number; // 1..5, ou 0 para representar a aba FINAL
-  scoreHome: number;
-  scoreAway: number;
+  // Cada set tem SEU PRÓPRIO placar de pontos (ex: 25x13 no set 1,
+  // 22x25 no set 2). Antes isso era um único valor pra partida toda,
+  // o que fazia o placar "vazar" de um set pro outro.
+  setScores: Record<number, { home: number; away: number }>;
   teamHomeName: string;
   teamAwayName: string;
   sets: Record<number, Lineup[]>; // set_number -> escalação/estatísticas daquele set
@@ -35,8 +37,7 @@ interface MatchState {
   setField: (setNumber: number, lineupId: string, field: keyof StatFields, value: number) => void;
   renamePlayer: (setNumber: number, lineupId: string, newName: string) => void;
   clearPlayerStats: (setNumber: number, lineupId: string) => void;
-  setScoreHome: (value: number) => void;
-  setScoreAway: (value: number) => void;
+  setScore: (setNumber: number, side: 'home' | 'away', value: number) => void;
   substitutePlayer: (
     role: Role,
     outPlayer: string,
@@ -57,8 +58,7 @@ function buildInitialSets(): Record<number, Lineup[]> {
 export const useMatchStore = create<MatchState>((set, get) => ({
   format: 3,
   activeSet: 1,
-  scoreHome: 0,
-  scoreAway: 0,
+  setScores: { 1: { home: 0, away: 0 }, 2: { home: 0, away: 0 }, 3: { home: 0, away: 0 }, 4: { home: 0, away: 0 }, 5: { home: 0, away: 0 } },
   teamHomeName: 'Time A',
   teamAwayName: 'Time B',
   sets: buildInitialSets(),
@@ -117,14 +117,11 @@ export const useMatchStore = create<MatchState>((set, get) => ({
     set({ sets });
   },
 
-  setScoreHome: (value) => {
+  setScore: (setNumber, side, value) => {
     const safeValue = Number.isFinite(value) ? Math.max(0, Math.round(value)) : 0;
-    set({ scoreHome: safeValue });
-  },
-
-  setScoreAway: (value) => {
-    const safeValue = Number.isFinite(value) ? Math.max(0, Math.round(value)) : 0;
-    set({ scoreAway: safeValue });
+    const setScores = { ...get().setScores };
+    setScores[setNumber] = { ...setScores[setNumber], [side]: safeValue };
+    set({ setScores });
   },
 
   substitutePlayer: (role, outPlayer, inPlayer, applyToSets) => {
@@ -145,6 +142,7 @@ export const useMatchStore = create<MatchState>((set, get) => ({
   resetSet: (setNumber) => {
     const sets = { ...get().sets };
     sets[setNumber] = DEFAULT_ROSTER.map(([role, player]) => defaultLineup(role, player));
-    set({ sets });
+    const setScores = { ...get().setScores, [setNumber]: { home: 0, away: 0 } };
+    set({ sets, setScores });
   },
 }));

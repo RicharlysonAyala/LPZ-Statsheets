@@ -14,9 +14,9 @@ class StatLine:
 BASE_RATING = 5.0
 
 WEIGHTS = {
-    "default": dict(pf=0.6, pt=-0.5, eo=-0.6, ed=-0.6, ast=0.3, blk=0.4),
+    "default": dict(pf=0.6, pt=-0.5, eo=-0.6, ed=-0.5, ast=0.3, blk=0.4),
     "setter": dict(pf=0.5, pt=-0.2, eo=-0.3, ed=-0.3, ast=0.6, blk=0.5),
-    "ds_tsk": dict(pf=0.5, pt=-0.3, eo=-0.4, ed=-0.4, ast=0.5, blk=0.0),
+    "ds_tsk": dict(pf=0.5, pt=-0.7, eo=-0.7, ed=-0.4, ast=0.5, blk=0.0),
 }
 
 

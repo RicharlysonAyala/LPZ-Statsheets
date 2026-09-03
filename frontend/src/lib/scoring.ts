@@ -1,15 +1,15 @@
 import type { Role, StatFields } from '../types/stats';
 
-const BASE_RATING = 5.0;
+const BASE_RATING = 10.0;
 
 type Weights = {
   pf: number; pt: number; eo: number; ed: number; ast: number; blk: number;
 };
 
 const WEIGHTS: Record<string, Weights> = {
-  default: { pf: 0.6, pt: -0.5, eo: -0.6, ed: -0.6, ast: 0.3, blk: 0.4 },
-  Setter: { pf: 0.5, pt: -0.2, eo: -0.3, ed: -0.3, ast: 0.6, blk: 0.5 },
-  'Ds Tsk': { pf: 0.5, pt: -0.3, eo: -0.4, ed: -0.4, ast: 0.5, blk: 0.0 },
+  default: { pf: 0.8, pt: -0.8, eo: -0.3, ed: -0.3, ast: 0.3, blk: 0.4 },
+  Setter: { pf: 1, pt: -0.2, eo: -0.6, ed: -0.5, ast: 0.6, blk: 0.5 },
+  'Ds Tsk': { pf: 1, pt: -0.8, eo: -0.6, ed: -0.3, ast: 0.6, blk: 0.0 },
 };
 
 export function calculateRating(role: Role, stats: StatFields): number {

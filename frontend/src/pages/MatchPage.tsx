@@ -13,13 +13,26 @@ import type { Role, StatFields } from '../types/stats';
 
 export default function MatchPage() {
   const [activeTab, setActiveTab] = useState<TabKey>(1);
-  const { sets, incrementField, decrementField, setField, renamePlayer, clearPlayerStats, activeSet: storeSet, setActiveSet } =
-    useMatchStore();
+  const {
+    sets,
+    activeTeamSide,
+    teamHomeName,
+    teamAwayName,
+    incrementField,
+    decrementField,
+    setField,
+    renamePlayer,
+    clearPlayerStats,
+    activeSet: storeSet,
+    setActiveSet,
+  } = useMatchStore();
 
   const [subTarget, setSubTarget] = useState<{ role: Role; player: string } | null>(null);
 
   const currentSetNumber = typeof activeTab === 'number' ? activeTab : storeSet;
-  const currentLineups = sets[currentSetNumber] ?? [];
+  // Sempre lê do roster do time ATIVO (o botão TROCAR muda isso).
+  const currentLineups = sets[activeTeamSide][currentSetNumber] ?? [];
+  const activeTeamName = activeTeamSide === 'home' ? teamHomeName : teamAwayName;
 
   function handleTabChange(tab: TabKey) {
     setActiveTab(tab);
@@ -35,6 +48,13 @@ export default function MatchPage() {
 
         {typeof activeTab === 'number' && (
           <>
+            <div className="flex items-center gap-2 px-1">
+              <span className={`h-2 w-2 rounded-full ${activeTeamSide === 'home' ? 'bg-primary' : 'bg-magenta'}`} style={{ boxShadow: '0 0 8px currentColor' }} />
+              <p className="font-tech text-xs font-bold tracking-[0.18em] text-slate-300">
+                ESCALAÇÃO: {activeTeamName.toUpperCase()}
+              </p>
+            </div>
+
             <IndicatorsBar lineups={currentLineups} />
 
             <div className="stagger-in grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -66,9 +86,13 @@ export default function MatchPage() {
 
         {activeTab === 'final' && (
           <>
-            <IndicatorsBar
-              lineups={Object.values(sets).flat().length ? currentLineups : []}
-            />
+            <div className="flex items-center gap-2 px-1">
+              <span className={`h-2 w-2 rounded-full ${activeTeamSide === 'home' ? 'bg-primary' : 'bg-magenta'}`} style={{ boxShadow: '0 0 8px currentColor' }} />
+              <p className="font-tech text-xs font-bold tracking-[0.18em] text-slate-300">
+                FINAL: {activeTeamName.toUpperCase()}
+              </p>
+            </div>
+            <IndicatorsBar lineups={currentLineups} />
             <FinalTable />
             <MistakeInfoBar />
           </>

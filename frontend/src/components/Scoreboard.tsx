@@ -1,4 +1,4 @@
-import { FileText, MessageSquare, Save, RotateCcw, Camera, ShieldCheck } from 'lucide-react';
+import { FileText, Save, RotateCcw, Camera, ShieldCheck, ArrowLeftRight } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useMatchStore } from '../store/matchStore';
 import StaffSaveModal from './StaffSaveModal';
@@ -61,13 +61,13 @@ export default function Scoreboard() {
     setFormat,
     setScores,
     setScore,
+    activeTeamSide,
+    toggleTeamSide,
   } = useMatchStore();
   const pips = Array.from({ length: format }, (_, i) => i + 1);
 
-  // Placar do SET ATUAL especificamente (não mais um valor único pra partida)
   const currentSetScore = setScores[activeSet] ?? { home: 0, away: 0 };
 
-  // Quantos sets cada time já venceu, comparando o placar de cada set já jogado
   const setsWonHome = Array.from({ length: format }, (_, i) => i + 1).filter(
     (n) => (setScores[n]?.home ?? 0) > (setScores[n]?.away ?? 0)
   ).length;
@@ -75,7 +75,6 @@ export default function Scoreboard() {
     (n) => (setScores[n]?.away ?? 0) > (setScores[n]?.home ?? 0)
   ).length;
 
-  // Menu "SALVAR PARTIDA" (Staff / Print) e o modal do Staff
   const [menuOpen, setMenuOpen] = useState(false);
   const [staffModalOpen, setStaffModalOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -97,12 +96,6 @@ export default function Scoreboard() {
           <button type="button" className="btn-press flex min-h-11 items-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-3.5 py-2 text-[11px] font-semibold tracking-wide text-ink hover:border-primary/40 hover:bg-white/[0.07]">
             <FileText size={14} className="text-primary" /> UPDATE LOG
           </button>
-          <button type="button" className="btn-press flex min-h-11 flex-col items-start justify-center rounded-xl border border-white/10 bg-white/[0.04] px-3.5 py-1.5 text-[11px] font-semibold tracking-wide text-ink hover:border-primary/40 hover:bg-white/[0.07]">
-            <span className="flex items-center gap-2">
-              <MessageSquare size={14} className="text-primary" /> FEEDBACK
-            </span>
-            <span className="text-[10px] font-medium text-muted">Envie sugestões/melhorias ou bugs</span>
-          </button>
 
           {/* Seletor MD3 / MD5 — define quantos sets a partida tem */}
           <div className="flex items-center gap-1 rounded-xl border border-white/10 bg-white/[0.04] p-1">
@@ -122,11 +115,29 @@ export default function Scoreboard() {
               </button>
             ))}
           </div>
+
+          {/* TROCAR — alterna qual dos dois times está sendo preenchido/visto.
+              Todos os cards de jogador e a aba FINAL passam a refletir o
+              roster do lado ativo. */}
+          <button
+            type="button"
+            onClick={toggleTeamSide}
+            className="btn-press flex min-h-11 items-center gap-2 rounded-xl border border-magenta/30 bg-magenta/10 px-3.5 py-2 text-[11px] font-bold tracking-wide text-magenta hover:bg-magenta/20"
+            title="Alternar qual time você está preenchendo"
+          >
+            <ArrowLeftRight size={14} />
+            TROCAR
+            <span className="rounded-full bg-black/30 px-2 py-0.5 text-[10px]">
+              {activeTeamSide === 'home' ? teamHomeName.toUpperCase() : teamAwayName.toUpperCase()}
+            </span>
+          </button>
         </div>
 
         <div className="flex items-center justify-center gap-5 md:gap-8">
           <div className="text-right">
-            <p className="mb-1 text-[10px] font-semibold tracking-[0.2em] text-muted">{teamHomeName.toUpperCase()}</p>
+            <p className={`mb-1 text-[10px] font-semibold tracking-[0.2em] ${activeTeamSide === 'home' ? 'text-primary' : 'text-muted'}`}>
+              {teamHomeName.toUpperCase()}
+            </p>
             <EditableScore value={currentSetScore.home} onCommit={(v) => setScore(activeSet, 'home', v)} />
           </div>
           <div className="flex flex-col items-center gap-2 pt-3">
@@ -149,7 +160,9 @@ export default function Scoreboard() {
             </div>
           </div>
           <div className="text-left">
-            <p className="mb-1 text-[10px] font-semibold tracking-[0.2em] text-muted">{teamAwayName.toUpperCase()}</p>
+            <p className={`mb-1 text-[10px] font-semibold tracking-[0.2em] ${activeTeamSide === 'away' ? 'text-primary' : 'text-muted'}`}>
+              {teamAwayName.toUpperCase()}
+            </p>
             <EditableScore value={currentSetScore.away} onCommit={(v) => setScore(activeSet, 'away', v)} />
           </div>
         </div>

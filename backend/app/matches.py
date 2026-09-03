@@ -1,7 +1,7 @@
 from typing import Optional, Literal
 from pydantic import BaseModel, Field
 
-Role = Literal["ponteiro", "oposto", "libero", "ds_spiker", "ds_tsk", "setter"]
+Role = Literal["ponteiro", "setter", "oposto", "ds_spiker", "libero", "ds_tsk"]
 StatField = Literal[
     "pontos_feitos", "pontos_tomados", "block", "assistencias",
     "erro_ofensivo", "erro_defensivo", "sets_recebidos", "recepcoes",

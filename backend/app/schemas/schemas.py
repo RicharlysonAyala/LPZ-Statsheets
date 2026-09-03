@@ -1,7 +1,7 @@
 from typing import Optional, Literal
 from pydantic import BaseModel, Field
 
-Role = Literal["ponteiro", "oposto", "libero", "ds_spiker", "ds_tsk", "setter"]
+Role = Literal["ponteiro", "setter", "oposto", "ds_spiker", "libero", "ds_tsk"]
 StatField = Literal[
     "pontos_feitos", "pontos_tomados", "block", "assistencias",
     "erro_ofensivo", "erro_defensivo", "sets_recebidos", "recepcoes",
@@ -55,10 +55,9 @@ class SaveMatchStatsIn(BaseModel):
 
 
 class SaveMatchLineupIn(BaseModel):
-    # Vem no formato do front (com acento/maiúscula), ex: "Ds Spiker".
-    # É normalizado pro formato do banco (ex: "ds_spiker") dentro da rota.
     role: str
     player_name: str
+    discord_id: str = Field(min_length=1)
     is_substitute: bool = False
     stats: SaveMatchStatsIn
 
@@ -67,13 +66,12 @@ class SaveMatchSetIn(BaseModel):
     set_number: int
     score_home: int = 0
     score_away: int = 0
-    lineups: list[SaveMatchLineupIn]
+    home_lineups: list[SaveMatchLineupIn]
+    away_lineups: list[SaveMatchLineupIn]
 
 
 class SaveMatchIn(BaseModel):
     format: Literal[3, 5]
     team_home_role_id: str = Field(min_length=1)
     team_away_role_id: str = Field(min_length=1)
-    # nome local do jogador (como digitado no card) -> ID de Discord dele
-    player_discord_ids: dict[str, str]
     sets: list[SaveMatchSetIn]

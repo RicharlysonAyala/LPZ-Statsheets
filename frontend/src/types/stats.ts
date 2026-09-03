@@ -1,11 +1,11 @@
 // Papéis (posições) suportados pelo sistema
 export type Role =
   | 'Ponteiro'
+  | 'Setter'
   | 'Oposto'
-  | 'Líbero'
   | 'Ds Spiker'
-  | 'Ds Tsk'
-  | 'Setter';
+  | 'Líbero'
+  | 'Ds Tsk';
 
 // Campos de estatística que existem (nem todo papel usa todos)
 export interface StatFields {

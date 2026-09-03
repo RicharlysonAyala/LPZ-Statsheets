@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { X, Loader2, CheckCircle2 } from 'lucide-react';
 import { useMatchStore } from '../store/matchStore';
+import type { Lineup } from '../types/stats';
 import { saveMatchStaff, ApiError, type SaveMatchPayload } from '../lib/api';
 
 interface Props {
@@ -13,38 +14,118 @@ interface UniquePlayer {
   name: string;
 }
 
-export default function StaffSaveModal({ onClose }: Props) {
-  const { sets, format, setScores } = useMatchStore();
-
-  // Monta a lista de jogadores ÚNICOS que apareceram em qualquer set da
-  // partida (isso já cobre substituições — se alguém entrou como sub,
-  // ele também ganha um campo pra digitar o Discord ID dele).
-  const uniquePlayers = useMemo<UniquePlayer[]>(() => {
-    const seen = new Map<string, UniquePlayer>();
-    for (let setNumber = 1; setNumber <= format; setNumber++) {
-      for (const lineup of sets[setNumber] ?? []) {
-        const key = `${lineup.role}__${lineup.player}`;
-        if (!seen.has(key)) {
-          seen.set(key, { key, role: lineup.role, name: lineup.player });
-        }
+// Monta a lista de jogadores ÚNICOS que apareceram em qualquer set de um
+// roster (isso já cobre substituições — quem entrou como sub também ganha
+// um campo pra digitar o Discord ID dele).
+function collectUniquePlayers(sideSets: Record<number, Lineup[]>, format: number): UniquePlayer[] {
+  const seen = new Map<string, UniquePlayer>();
+  for (let setNumber = 1; setNumber <= format; setNumber++) {
+    for (const lineup of sideSets[setNumber] ?? []) {
+      const key = `${lineup.role}__${lineup.player}`;
+      if (!seen.has(key)) {
+        seen.set(key, { key, role: lineup.role, name: lineup.player });
       }
     }
-    return Array.from(seen.values());
-  }, [sets, format]);
+  }
+  return Array.from(seen.values());
+}
+
+// Um bloco de "cargo do time" + grade de jogadores com campo de Discord ID.
+// Reaproveitado duas vezes (casa e visitante) pra não duplicar JSX.
+function TeamRosterFields({
+  label,
+  teamName,
+  roleId,
+  onRoleIdChange,
+  players,
+  discordIds,
+  onDiscordIdChange,
+}: {
+  label: string;
+  teamName: string;
+  roleId: string;
+  onRoleIdChange: (v: string) => void;
+  players: UniquePlayer[];
+  discordIds: Record<string, string>;
+  onDiscordIdChange: (name: string, v: string) => void;
+}) {
+  return (
+    <div className="mb-5 rounded-xl border border-white/10 bg-black/20 p-4">
+      <p className="font-tech text-xs font-bold tracking-wide text-primary mb-3">
+        {label} · {teamName}
+      </p>
+
+      <label className="text-[10px] text-slate-500 font-semibold">ID DO CARGO NO DISCORD</label>
+      <input
+        value={roleId}
+        onChange={(e) => onRoleIdChange(e.target.value)}
+        placeholder="ID do cargo"
+        className="w-full mt-1 mb-4 rounded-lg bg-black/40 border border-primary/25 px-3 py-2 text-sm outline-none focus:border-primary"
+      />
+
+      {players.length === 0 ? (
+        <p className="text-xs text-slate-500">
+          Nenhum jogador com estatística lançada ainda nesse lado. Preencha os cards primeiro.
+        </p>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          {players.map((p) => (
+            <div key={p.key}>
+              <label className="text-[10px] text-slate-500 font-semibold">
+                {p.role.toUpperCase()} · {p.name}
+              </label>
+              <input
+                value={discordIds[p.name] ?? ''}
+                onChange={(e) => onDiscordIdChange(p.name, e.target.value)}
+                placeholder="ID do Discord"
+                className="w-full mt-1 rounded-lg bg-black/40 border border-primary/25 px-3 py-2 text-sm outline-none focus:border-primary"
+              />
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default function StaffSaveModal({ onClose }: Props) {
+  const { sets, format, setScores, teamHomeName, teamAwayName } = useMatchStore();
+
+  const homePlayers = useMemo(() => collectUniquePlayers(sets.home, format), [sets.home, format]);
+  const awayPlayers = useMemo(() => collectUniquePlayers(sets.away, format), [sets.away, format]);
 
   const [teamHomeRoleId, setTeamHomeRoleId] = useState('');
   const [teamAwayRoleId, setTeamAwayRoleId] = useState('');
-  const [discordIds, setDiscordIds] = useState<Record<string, string>>({});
+  const [homeDiscordIds, setHomeDiscordIds] = useState<Record<string, string>>({});
+  const [awayDiscordIds, setAwayDiscordIds] = useState<Record<string, string>>({});
   const [status, setStatus] = useState<'idle' | 'saving' | 'success' | 'error'>('idle');
   const [errorMessage, setErrorMessage] = useState('');
 
   const allFilled =
     teamHomeRoleId.trim() !== '' &&
     teamAwayRoleId.trim() !== '' &&
-    uniquePlayers.every((p) => (discordIds[p.name] ?? '').trim() !== '');
+    homePlayers.every((p) => (homeDiscordIds[p.name] ?? '').trim() !== '') &&
+    awayPlayers.every((p) => (awayDiscordIds[p.name] ?? '').trim() !== '');
 
-  function updateDiscordId(name: string, value: string) {
-    setDiscordIds((prev) => ({ ...prev, [name]: value }));
+  function buildLineupsPayload(
+    sideSets: Record<number, Lineup[]>,
+    setNumber: number,
+    discordIds: Record<string, string>
+  ) {
+    return (sideSets[setNumber] ?? []).map((lineup) => ({
+      role: lineup.role,
+      player_name: lineup.player,
+      discord_id: (discordIds[lineup.player] ?? '').trim(),
+      is_substitute: Boolean(lineup.subInfo),
+      stats: {
+        pontos_feitos: lineup.stats.pontosFeitos,
+        pontos_tomados: lineup.stats.pontosTomados,
+        block: lineup.stats.block,
+        assistencias: lineup.stats.assistencias,
+        erro_ofensivo: lineup.stats.erroOfensivo,
+        erro_defensivo: lineup.stats.erroDefensivo,
+      },
+    }));
   }
 
   async function handleSubmit() {
@@ -56,26 +137,12 @@ export default function StaffSaveModal({ onClose }: Props) {
       format,
       team_home_role_id: teamHomeRoleId.trim(),
       team_away_role_id: teamAwayRoleId.trim(),
-      player_discord_ids: Object.fromEntries(
-        Object.entries(discordIds).map(([name, id]) => [name, id.trim()])
-      ),
       sets: Array.from({ length: format }, (_, i) => i + 1).map((setNumber) => ({
         set_number: setNumber,
         score_home: setScores[setNumber]?.home ?? 0,
         score_away: setScores[setNumber]?.away ?? 0,
-        lineups: (sets[setNumber] ?? []).map((lineup) => ({
-          role: lineup.role,
-          player_name: lineup.player,
-          is_substitute: Boolean(lineup.subInfo),
-          stats: {
-            pontos_feitos: lineup.stats.pontosFeitos,
-            pontos_tomados: lineup.stats.pontosTomados,
-            block: lineup.stats.block,
-            assistencias: lineup.stats.assistencias,
-            erro_ofensivo: lineup.stats.erroOfensivo,
-            erro_defensivo: lineup.stats.erroDefensivo,
-          },
-        })),
+        home_lineups: buildLineupsPayload(sets.home, setNumber, homeDiscordIds),
+        away_lineups: buildLineupsPayload(sets.away, setNumber, awayDiscordIds),
       })),
     };
 
@@ -116,48 +183,25 @@ export default function StaffSaveModal({ onClose }: Props) {
           </div>
         ) : (
           <>
-            {/* IDs de cargo dos dois times */}
-            <p className="text-slate-400 text-xs font-bold mb-2 tracking-wide">TIMES QUE JOGARAM (ID DO CARGO)</p>
-            <div className="grid grid-cols-2 gap-3 mb-5">
-              <div>
-                <label className="text-[10px] text-slate-500 font-semibold">TIME DA CASA</label>
-                <input
-                  value={teamHomeRoleId}
-                  onChange={(e) => setTeamHomeRoleId(e.target.value)}
-                  placeholder="ID do cargo no Discord"
-                  className="w-full mt-1 rounded-lg bg-black/40 border border-primary/25 px-3 py-2 text-sm outline-none focus:border-primary"
-                />
-              </div>
-              <div>
-                <label className="text-[10px] text-slate-500 font-semibold">TIME ADVERSÁRIO</label>
-                <input
-                  value={teamAwayRoleId}
-                  onChange={(e) => setTeamAwayRoleId(e.target.value)}
-                  placeholder="ID do cargo no Discord"
-                  className="w-full mt-1 rounded-lg bg-black/40 border border-primary/25 px-3 py-2 text-sm outline-none focus:border-primary"
-                />
-              </div>
-            </div>
+            <TeamRosterFields
+              label="TIME DA CASA"
+              teamName={teamHomeName}
+              roleId={teamHomeRoleId}
+              onRoleIdChange={setTeamHomeRoleId}
+              players={homePlayers}
+              discordIds={homeDiscordIds}
+              onDiscordIdChange={(name, v) => setHomeDiscordIds((prev) => ({ ...prev, [name]: v }))}
+            />
 
-            {/* IDs de Discord de cada jogador que apareceu na partida */}
-            <p className="text-slate-400 text-xs font-bold mb-2 tracking-wide">
-              JOGADORES (ID DO DISCORD DE CADA UM)
-            </p>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-5">
-              {uniquePlayers.map((p) => (
-                <div key={p.key}>
-                  <label className="text-[10px] text-slate-500 font-semibold">
-                    {p.role.toUpperCase()} · {p.name}
-                  </label>
-                  <input
-                    value={discordIds[p.name] ?? ''}
-                    onChange={(e) => updateDiscordId(p.name, e.target.value)}
-                    placeholder="ID do Discord"
-                    className="w-full mt-1 rounded-lg bg-black/40 border border-primary/25 px-3 py-2 text-sm outline-none focus:border-primary"
-                  />
-                </div>
-              ))}
-            </div>
+            <TeamRosterFields
+              label="TIME ADVERSÁRIO"
+              teamName={teamAwayName}
+              roleId={teamAwayRoleId}
+              onRoleIdChange={setTeamAwayRoleId}
+              players={awayPlayers}
+              discordIds={awayDiscordIds}
+              onDiscordIdChange={(name, v) => setAwayDiscordIds((prev) => ({ ...prev, [name]: v }))}
+            />
 
             {status === 'error' && (
               <p className="mb-4 rounded-lg border border-danger/30 bg-danger/10 px-3 py-2 text-xs text-danger">

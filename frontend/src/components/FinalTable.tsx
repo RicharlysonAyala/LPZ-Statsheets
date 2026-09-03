@@ -24,13 +24,15 @@ function emptyStats(): StatFields {
 }
 
 export default function FinalTable() {
-  const { sets, format } = useMatchStore();
+  const { sets, format, activeTeamSide } = useMatchStore();
+  const activeSets = sets[activeTeamSide];
   const setNumbers = Array.from({ length: format }, (_, i) => i + 1);
 
   // Agrega estatísticas por (role + player) somando todos os sets
+  // (só do time ativo — o botão TROCAR muda qual roster aparece aqui)
   const map = new Map<string, AggregatedRow>();
   setNumbers.forEach((setNumber) => {
-    (sets[setNumber] ?? []).forEach((lineup) => {
+    (activeSets[setNumber] ?? []).forEach((lineup) => {
       const key = `${lineup.role}__${lineup.player}`;
       if (!map.has(key)) {
         map.set(key, {

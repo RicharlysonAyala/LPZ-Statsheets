@@ -83,6 +83,9 @@ class SetLineup(Base):
     match_set_id = Column(String, ForeignKey("match_sets.id"), nullable=False)
     role = Column(String(20), nullable=False)  # ponteiro, oposto, libero, ds_spiker, ds_tsk, setter
     player_id = Column(String, ForeignKey("players.id"), nullable=False)
+    # De qual dos dois times dessa partida esse jogador é (necessário
+    # agora que uma partida rastreia os DOIS rosters, não só um).
+    team_id = Column(String, ForeignKey("teams.id"), nullable=True)
     is_substitute = Column(Boolean, default=False)
     substituted_player_id = Column(String, ForeignKey("players.id"), nullable=True)
 

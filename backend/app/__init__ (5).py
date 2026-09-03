@@ -7,7 +7,7 @@ from app.services.scoring import calculate_rating, calculate_efficiency, StatLin
 
 router = APIRouter(prefix="/matches", tags=["matches"])
 
-ROLES = ["ponteiro", "oposto", "libero", "ds_spiker", "ds_tsk", "setter"]
+ROLES = ["ponteiro", "setter", "oposto", "ds_spiker", "libero", "ds_tsk"]
 
 
 @router.post("/")

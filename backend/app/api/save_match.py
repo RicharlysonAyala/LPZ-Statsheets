@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.models.models import Team, Player, Match, MatchSet, SetLineup, SetStats
-from app.schemas.schemas import SaveMatchIn
+from app.schemas.schemas import SaveMatchIn, SaveMatchLineupIn
 
 router = APIRouter(prefix="/matches", tags=["save-match"])
 
@@ -28,11 +28,55 @@ def normalize_role(raw_role: str) -> str:
     return normalized
 
 
+def get_or_create_player(db: Session, discord_id: str, fallback_name: str, team_id: str) -> Player:
+    """Busca o jogador pelo discord_id (identidade real). Se ele ainda não
+    existe no banco (ex: o bot nunca sincronizou essa pessoa), cria na hora
+    usando o nome que foi digitado no card como apelido provisório."""
+    player = db.query(Player).filter(Player.discord_id == discord_id).first()
+    if not player:
+        player = Player(discord_id=discord_id, nickname=fallback_name, current_team_id=team_id)
+        db.add(player)
+        db.commit()
+        db.refresh(player)
+    return player
+
+
+def save_side_lineups(
+    db: Session,
+    match_set: MatchSet,
+    lineups_in: list[SaveMatchLineupIn],
+    team_id: str,
+):
+    for lineup_in in lineups_in:
+        player = get_or_create_player(db, lineup_in.discord_id, lineup_in.player_name, team_id)
+
+        lineup = SetLineup(
+            match_set_id=match_set.id,
+            role=normalize_role(lineup_in.role),
+            player_id=player.id,
+            team_id=team_id,
+            is_substitute=lineup_in.is_substitute,
+        )
+        db.add(lineup)
+        db.commit()
+        db.refresh(lineup)
+
+        stats = SetStats(
+            set_lineup_id=lineup.id,
+            pontos_feitos=lineup_in.stats.pontos_feitos,
+            pontos_tomados=lineup_in.stats.pontos_tomados,
+            block=lineup_in.stats.block,
+            assistencias=lineup_in.stats.assistencias,
+            erro_ofensivo=lineup_in.stats.erro_ofensivo,
+            erro_defensivo=lineup_in.stats.erro_defensivo,
+        )
+        db.add(stats)
+    db.commit()
+
+
 @router.post("/save-full")
 def save_full_match(payload: SaveMatchIn, db: Session = Depends(get_db)):
     # 1) Resolve os dois times pelo ID de cargo do Discord.
-    #    Se não encontrar, é sinal de que ninguém rodou /vincular-time
-    #    pra esse cargo ainda no bot.
     home_team = db.query(Team).filter(Team.discord_role_id == payload.team_home_role_id).first()
     if not home_team:
         raise HTTPException(
@@ -53,23 +97,7 @@ def save_full_match(payload: SaveMatchIn, db: Session = Depends(get_db)):
             ),
         )
 
-    # 2) Resolve (ou cria) cada jogador pelo discord_id. A identidade
-    #    real é sempre o discord_id, nunca o nome digitado no card.
-    name_to_player_id: dict[str, str] = {}
-    for player_name, discord_id in payload.player_discord_ids.items():
-        player = db.query(Player).filter(Player.discord_id == discord_id).first()
-        if not player:
-            player = Player(
-                discord_id=discord_id,
-                nickname=player_name,
-                current_team_id=home_team.id,
-            )
-            db.add(player)
-            db.commit()
-            db.refresh(player)
-        name_to_player_id[player_name] = player.id
-
-    # 3) Cria a partida
+    # 2) Cria a partida
     match = Match(
         team_home_id=home_team.id,
         team_away_id=away_team.id,
@@ -82,7 +110,7 @@ def save_full_match(payload: SaveMatchIn, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(match)
 
-    # 4) Cria cada set, cada escalação e cada estatística
+    # 3) Cria cada set, com os DOIS rosters daquele set
     sets_won_home = 0
     sets_won_away = 0
 
@@ -102,38 +130,10 @@ def save_full_match(payload: SaveMatchIn, db: Session = Depends(get_db)):
         elif set_in.score_away > set_in.score_home:
             sets_won_away += 1
 
-        for lineup_in in set_in.lineups:
-            player_id = name_to_player_id.get(lineup_in.player_name)
-            if not player_id:
-                raise HTTPException(
-                    status_code=400,
-                    detail=f"Falta o ID de Discord de '{lineup_in.player_name}'.",
-                )
+        save_side_lineups(db, match_set, set_in.home_lineups, home_team.id)
+        save_side_lineups(db, match_set, set_in.away_lineups, away_team.id)
 
-            lineup = SetLineup(
-                match_set_id=match_set.id,
-                role=normalize_role(lineup_in.role),
-                player_id=player_id,
-                is_substitute=lineup_in.is_substitute,
-            )
-            db.add(lineup)
-            db.commit()
-            db.refresh(lineup)
-
-            stats = SetStats(
-                set_lineup_id=lineup.id,
-                pontos_feitos=lineup_in.stats.pontos_feitos,
-                pontos_tomados=lineup_in.stats.pontos_tomados,
-                block=lineup_in.stats.block,
-                assistencias=lineup_in.stats.assistencias,
-                erro_ofensivo=lineup_in.stats.erro_ofensivo,
-                erro_defensivo=lineup_in.stats.erro_defensivo,
-            )
-            db.add(stats)
-
-        db.commit()
-
-    # 5) Decide o vencedor comparando sets ganhos
+    # 4) Decide o vencedor comparando sets ganhos
     if sets_won_home > sets_won_away:
         match.winner_team_id = home_team.id
     elif sets_won_away > sets_won_home:

@@ -7,7 +7,7 @@ import {
   Loader2,
 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
-import html2canvas from 'html2canvas';
+import { toPng } from 'html-to-image';
 import { useMatchStore } from '../store/matchStore';
 import StaffSaveModal from './StaffSaveModal';
 
@@ -100,31 +100,31 @@ export default function Scoreboard() {
 
   const isAway = activeTeamSide === 'away';
 
-  async function handlePrint() {
+    async function handlePrint() {
     setMenuOpen(false);
     const root = document.getElementById('statsheet-root');
     if (!root) {
-      alert('Não achei a área da statsheet para capturar.');
+      alert('Não achei a área da statsheet (#statsheet-root).');
       return;
     }
 
     setPrinting(true);
     try {
-      // Espera um frame pra UI do menu fechar antes do capture
-      await new Promise((r) => requestAnimationFrame(() => r(null)));
+      // Espera o menu fechar antes de capturar
+      await new Promise<void>((resolve) => {
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+      });
 
-      const canvas = await html2canvas(root, {
+      const dataUrl = await toPng(root, {
+        cacheBust: true,
+        pixelRatio: Math.min(2, window.devicePixelRatio || 2),
         backgroundColor: '#050b18',
-        scale: Math.min(2, window.devicePixelRatio || 2),
-        useCORS: true,
-        logging: false,
-        // Ignora botões de menu/modais se estiverem no DOM
-        ignoreElements: (el) => {
-          if (!(el instanceof HTMLElement)) return false;
-          return (
-            el.dataset?.printHide === 'true' ||
-            el.classList.contains('fixed') // modais fixed
-          );
+        // Não captura botões de ação / modais
+        filter: (node) => {
+          if (!(node instanceof HTMLElement)) return true;
+          if (node.dataset?.printHide === 'true') return false;
+          if (node.classList.contains('fixed')) return false;
+          return true;
         },
       });
 
@@ -135,11 +135,12 @@ export default function Scoreboard() {
 
       const link = document.createElement('a');
       link.download = filename;
-      link.href = canvas.toDataURL('image/png');
+      link.href = dataUrl;
       link.click();
     } catch (err) {
-      console.error(err);
-      alert('Falha ao gerar o print. Tente de novo ou use outro navegador.');
+      console.error('[print]', err);
+      const msg = err instanceof Error ? err.message : String(err);
+      alert(`Falha ao gerar o print:\n${msg}`);
     } finally {
       setPrinting(false);
     }

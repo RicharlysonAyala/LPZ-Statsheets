@@ -41,7 +41,7 @@ export default function MatchPage() {
 
   return (
     <div className="ambient-field">
-      <div 
+      <div
         id="statsheet-root"
         className="ambient-inner mx-auto min-h-screen max-w-[1400px] space-y-4 p-4 md:space-y-5 md:p-6"
       >
@@ -51,9 +51,9 @@ export default function MatchPage() {
 
         {typeof activeTab === 'number' && (
           <>
-            <div className="flex items-center gap-2 px-1">
+            <div className="flex items-center gap-2 px-1 whitespace-nowrap">
               <span className={`h-2 w-2 rounded-full ${activeTeamSide === 'home' ? 'bg-primary' : 'bg-magenta'}`} style={{ boxShadow: '0 0 8px currentColor' }} />
-              <p className="font-tech text-xs font-bold tracking-[0.18em] text-slate-300">
+              <p className="font-tech whitespace-nowrap text-xs font-bold tracking-[0.18em] text-slate-300">
                 ESCALAÇÃO: {activeTeamName.toUpperCase()}
               </p>
             </div>
@@ -91,7 +91,7 @@ export default function MatchPage() {
           <>
             <div className="flex items-center gap-2 px-1">
               <span className={`h-2 w-2 rounded-full ${activeTeamSide === 'home' ? 'bg-primary' : 'bg-magenta'}`} style={{ boxShadow: '0 0 8px currentColor' }} />
-              <p className="font-tech text-xs font-bold tracking-[0.18em] text-slate-300">
+              <p className="font-tech whitespace-nowrap text-xs font-bold tracking-[0.18em] text-slate-300">
                 FINAL: {activeTeamName.toUpperCase()}
               </p>
             </div>

@@ -172,11 +172,10 @@ export default function Scoreboard() {
                 key={opt}
                 type="button"
                 onClick={() => setFormat(opt)}
-                className={`font-tech min-h-9 rounded-lg px-3 text-[11px] font-bold tracking-wide transition-colors ${
-                  format === opt
+                className={`font-tech min-h-9 rounded-lg px-3 text-[11px] font-bold tracking-wide transition-colors ${format === opt
                     ? 'bg-gradient-to-r from-primary to-cyan text-[#03121f]'
                     : 'text-slate-400 hover:text-white'
-                }`}
+                  }`}
                 title={opt === 3 ? 'Melhor de 3 sets' : 'Melhor de 5 sets (playoffs)'}
               >
                 MD{opt}
@@ -187,16 +186,15 @@ export default function Scoreboard() {
           <button
             type="button"
             onClick={toggleTeamSide}
-            className={`btn-press flex min-h-11 items-center gap-2 rounded-xl border px-3.5 py-2 text-[11px] font-bold tracking-wide transition-colors ${
-              isAway
+            className={`btn-press flex min-h-11 items-center gap-2 whitespace-nowrap rounded-xl border px-3.5 py-2 text-[11px] font-bold tracking-wide transition-colors ${isAway
                 ? 'border-primary/40 bg-primary/15 text-primary hover:bg-primary/25'
                 : 'border-magenta/30 bg-magenta/10 text-magenta hover:bg-magenta/20'
-            }`}
+              }`}
             title="Alternar qual time você está preenchendo"
           >
             <ArrowLeftRight size={14} />
             TROCAR
-            <span className="rounded-full bg-black/30 px-2 py-0.5 text-[10px]">
+            <span className="max-w-[9rem] truncate whitespace-nowrap rounded-full bg-black/30 px-2 py-0.5 text-[10px]">
               {isAway ? teamAwayName.toUpperCase() : teamHomeName.toUpperCase()}
             </span>
           </button>
@@ -206,9 +204,8 @@ export default function Scoreboard() {
         <div className="flex items-center justify-center gap-5 md:gap-8">
           <div className="text-right">
             <p
-              className={`mb-1 text-[10px] font-semibold tracking-[0.2em] ${
-                activeTeamSide === 'home' ? 'text-primary' : 'text-muted'
-              }`}
+              className={`mb-1 text-[10px] font-semibold tracking-[0.2em] ${activeTeamSide === 'home' ? 'text-primary' : 'text-muted'
+                }`}
             >
               {teamHomeName.toUpperCase()}
             </p>
@@ -232,9 +229,8 @@ export default function Scoreboard() {
                 return (
                   <span
                     key={n}
-                    className={`h-2 w-2 rounded-full ${
-                      homeWon ? 'bg-primary' : awayWon ? 'bg-magenta' : 'bg-white/15'
-                    }`}
+                    className={`h-2 w-2 rounded-full ${homeWon ? 'bg-primary' : awayWon ? 'bg-magenta' : 'bg-white/15'
+                      }`}
                     title={`Set ${n}: ${sh}x${sa}`}
                   />
                 );
@@ -247,9 +243,8 @@ export default function Scoreboard() {
 
           <div className="text-left">
             <p
-              className={`mb-1 text-[10px] font-semibold tracking-[0.2em] ${
-                activeTeamSide === 'away' ? 'text-primary' : 'text-muted'
-              }`}
+              className={`mb-1 text-[10px] font-semibold tracking-[0.2em] ${activeTeamSide === 'away' ? 'text-primary' : 'text-muted'
+                }`}
             >
               {teamAwayName.toUpperCase()}
             </p>

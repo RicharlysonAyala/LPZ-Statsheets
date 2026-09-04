@@ -7,7 +7,7 @@ import {
   Loader2,
 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
-import { toPng } from 'html-to-image';
+import { domToPng } from 'modern-screenshot';
 import { useMatchStore } from '../store/matchStore';
 import StaffSaveModal from './StaffSaveModal';
 
@@ -100,7 +100,7 @@ export default function Scoreboard() {
 
   const isAway = activeTeamSide === 'away';
 
-    async function handlePrint() {
+      async function handlePrint() {
     setMenuOpen(false);
     const root = document.getElementById('statsheet-root');
     if (!root) {
@@ -110,16 +110,15 @@ export default function Scoreboard() {
 
     setPrinting(true);
     try {
-      // Espera o menu fechar antes de capturar
+      // Espera o menu fechar
       await new Promise<void>((resolve) => {
         requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
       });
 
-      const dataUrl = await toPng(root, {
-        cacheBust: true,
-        pixelRatio: Math.min(2, window.devicePixelRatio || 2),
+      const dataUrl = await domToPng(root, {
         backgroundColor: '#050b18',
-        // Não captura botões de ação / modais
+        scale: Math.min(2, window.devicePixelRatio || 2),
+        // modern-screenshot lida com oklab/oklch do Tailwind 4
         filter: (node) => {
           if (!(node instanceof HTMLElement)) return true;
           if (node.dataset?.printHide === 'true') return false;

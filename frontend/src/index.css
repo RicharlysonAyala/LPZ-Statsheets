@@ -251,14 +251,3 @@ body.is-printing #statsheet-root {
   padding: 24px !important;
   margin: 0 auto !important;
 }
-
-/* Placar só com o centro (sem botões dos lados) */
-body.is-printing .scoreboard-print-shell {
-  display: flex !important;
-  justify-content: center !important;
-  align-items: center !important;
-}
-
-body.is-printing .player-card-actions {
-  display: none !important;
-}

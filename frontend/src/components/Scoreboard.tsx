@@ -165,7 +165,7 @@ export default function Scoreboard() {
     <section className="hud-panel-hero tech-frame rounded-[22px] p-4 md:p-5">
       <div className="scoreboard-print-shell flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         {/* Controles esquerdos — fora do print */}
-        <div className="flex flex-wrap items-center gap-2" data-print-hide="true">
+        <div className="flex flex-wrap items-center gap-2">
           <div className="flex items-center gap-1 rounded-xl border border-white/10 bg-white/[0.04] p-1">
             {([3, 5] as const).map((opt) => (
               <button
@@ -261,7 +261,7 @@ export default function Scoreboard() {
         </div>
 
         {/* Ações direitas — fora do print */}
-        <div className="flex flex-wrap items-center justify-end gap-2" data-print-hide="true">
+        <div className="flex flex-wrap items-center justify-end gap-2">
           <div className="relative" ref={menuRef}>
             <button
               type="button"

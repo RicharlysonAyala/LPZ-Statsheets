@@ -12,8 +12,6 @@ ORIGINS = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
     "https://lpz-statsheets.vercel.app",
-    # preview deployments da Vercel (opcional, mas ajuda em testes)
-    "https://lpz-statsheets-p2pauc4hp-z-lucky.vercel.app",
 ]
 
 app.add_middleware(
@@ -27,15 +25,12 @@ app.add_middleware(
 
 @app.exception_handler(Exception)
 async def unhandled_exception_handler(request: Request, exc: Exception):
-    """Garante que 500 também tenha CORS e mostre a causa real no body.
-    Sem isso o browser trata como 'falha de rede' e some com a mensagem."""
     origin = request.headers.get("origin", "")
     headers = {}
     if origin in ORIGINS or origin.endswith(".vercel.app"):
         headers["Access-Control-Allow-Origin"] = origin
         headers["Vary"] = "Origin"
 
-    # Em produção você pode omitir o traceback; por enquanto ajuda a debugar.
     detail = f"{type(exc).__name__}: {exc}"
     print("UNHANDLED ERROR:", detail)
     traceback.print_exc()
@@ -47,9 +42,10 @@ async def unhandled_exception_handler(request: Request, exc: Exception):
     )
 
 
-# Cria tabelas se não existirem
 try:
     Base.metadata.create_all(bind=engine)
+    from app.core.migrate import run_migrations
+    run_migrations()
     print("DB OK — URL scheme:", DATABASE_URL.split("://", 1)[0])
 except Exception as e:
     print("FALHA ao conectar/criar tabelas:", e)
@@ -68,7 +64,6 @@ def health_check():
 
 @app.get("/health/db")
 def health_db():
-    """Testa se o banco responde. Abra no browser depois do deploy."""
     from sqlalchemy import text
     from app.core.database import SessionLocal
 

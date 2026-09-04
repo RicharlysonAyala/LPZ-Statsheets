@@ -41,7 +41,10 @@ export default function MatchPage() {
 
   return (
     <div className="ambient-field">
-      <div className="ambient-inner mx-auto min-h-screen max-w-[1400px] space-y-4 p-4 md:space-y-5 md:p-6">
+      <div 
+        id="statsheet-root"
+        className="ambient-inner mx-auto min-h-screen max-w-[1400px] space-y-4 p-4 md:space-y-5 md:p-6"
+      >
         <Header />
         <Scoreboard />
         <SetTabs active={activeTab} onChange={handleTabChange} />

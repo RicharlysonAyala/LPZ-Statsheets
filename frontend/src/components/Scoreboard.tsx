@@ -1,10 +1,16 @@
-import { FileText, Save, RotateCcw, Camera, ShieldCheck, ArrowLeftRight } from 'lucide-react';
+import {
+  Save,
+  RotateCcw,
+  Camera,
+  ShieldCheck,
+  ArrowLeftRight,
+  Loader2,
+} from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
+import html2canvas from 'html2canvas';
 import { useMatchStore } from '../store/matchStore';
 import StaffSaveModal from './StaffSaveModal';
 
-// Número do placar que vira um <input> ao clicar, e volta a ser texto
-// grande (com o brilho "score-glow") quando não está em edição.
 function EditableScore({ value, onCommit }: { value: number; onCommit: (v: number) => void }) {
   const [editing, setEditing] = useState(false);
   const [text, setText] = useState(String(value));
@@ -64,8 +70,8 @@ export default function Scoreboard() {
     activeTeamSide,
     toggleTeamSide,
   } = useMatchStore();
-  const pips = Array.from({ length: format }, (_, i) => i + 1);
 
+  const pips = Array.from({ length: format }, (_, i) => i + 1);
   const currentSetScore = setScores[activeSet] ?? { home: 0, away: 0 };
 
   const setsWonHome = Array.from({ length: format }, (_, i) => i + 1).filter(
@@ -77,6 +83,7 @@ export default function Scoreboard() {
 
   const [menuOpen, setMenuOpen] = useState(false);
   const [staffModalOpen, setStaffModalOpen] = useState(false);
+  const [printing, setPrinting] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -85,19 +92,63 @@ export default function Scoreboard() {
         setMenuOpen(false);
       }
     }
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+    if (menuOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [menuOpen]);
+
+  const isAway = activeTeamSide === 'away';
+
+  async function handlePrint() {
+    setMenuOpen(false);
+    const root = document.getElementById('statsheet-root');
+    if (!root) {
+      alert('Não achei a área da statsheet para capturar.');
+      return;
+    }
+
+    setPrinting(true);
+    try {
+      // Espera um frame pra UI do menu fechar antes do capture
+      await new Promise((r) => requestAnimationFrame(() => r(null)));
+
+      const canvas = await html2canvas(root, {
+        backgroundColor: '#050b18',
+        scale: Math.min(2, window.devicePixelRatio || 2),
+        useCORS: true,
+        logging: false,
+        // Ignora botões de menu/modais se estiverem no DOM
+        ignoreElements: (el) => {
+          if (!(el instanceof HTMLElement)) return false;
+          return (
+            el.dataset?.printHide === 'true' ||
+            el.classList.contains('fixed') // modais fixed
+          );
+        },
+      });
+
+      const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
+      const filename = `lpz-statsheet-${teamHomeName}-vs-${teamAwayName}-set${activeSet}-${stamp}.png`
+        .replace(/\s+/g, '_')
+        .toLowerCase();
+
+      const link = document.createElement('a');
+      link.download = filename;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+    } catch (err) {
+      console.error(err);
+      alert('Falha ao gerar o print. Tente de novo ou use outro navegador.');
+    } finally {
+      setPrinting(false);
+    }
+  }
 
   return (
-    <section className="hud-panel-hero tech-frame rounded-[22px] px-4 py-4 md:px-6 md:py-5">
+    <section className="hud-panel-hero tech-frame rounded-[22px] p-4 md:p-5">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex flex-wrap items-center gap-2">
-          <button type="button" className="btn-press flex min-h-11 items-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-3.5 py-2 text-[11px] font-semibold tracking-wide text-ink hover:border-primary/40 hover:bg-white/[0.07]">
-            <FileText size={14} className="text-primary" /> UPDATE LOG
-          </button>
-
-          {/* Seletor MD3 / MD5 — define quantos sets a partida tem */}
           <div className="flex items-center gap-1 rounded-xl border border-white/10 bg-white/[0.04] p-1">
             {([3, 5] as const).map((opt) => (
               <button
@@ -116,65 +167,96 @@ export default function Scoreboard() {
             ))}
           </div>
 
-          {/* TROCAR — alterna qual dos dois times está sendo preenchido/visto.
-              Todos os cards de jogador e a aba FINAL passam a refletir o
-              roster do lado ativo. */}
+          {/* TROCAR: casa = magenta; visitante = azul primary do site */}
           <button
             type="button"
             onClick={toggleTeamSide}
-            className="btn-press flex min-h-11 items-center gap-2 rounded-xl border border-magenta/30 bg-magenta/10 px-3.5 py-2 text-[11px] font-bold tracking-wide text-magenta hover:bg-magenta/20"
+            className={`btn-press flex min-h-11 items-center gap-2 rounded-xl border px-3.5 py-2 text-[11px] font-bold tracking-wide transition-colors ${
+              isAway
+                ? 'border-primary/40 bg-primary/15 text-primary hover:bg-primary/25'
+                : 'border-magenta/30 bg-magenta/10 text-magenta hover:bg-magenta/20'
+            }`}
             title="Alternar qual time você está preenchendo"
           >
             <ArrowLeftRight size={14} />
             TROCAR
             <span className="rounded-full bg-black/30 px-2 py-0.5 text-[10px]">
-              {activeTeamSide === 'home' ? teamHomeName.toUpperCase() : teamAwayName.toUpperCase()}
+              {isAway ? teamAwayName.toUpperCase() : teamHomeName.toUpperCase()}
             </span>
           </button>
         </div>
 
         <div className="flex items-center justify-center gap-5 md:gap-8">
           <div className="text-right">
-            <p className={`mb-1 text-[10px] font-semibold tracking-[0.2em] ${activeTeamSide === 'home' ? 'text-primary' : 'text-muted'}`}>
+            <p
+              className={`mb-1 text-[10px] font-semibold tracking-[0.2em] ${
+                activeTeamSide === 'home' ? 'text-primary' : 'text-muted'
+              }`}
+            >
               {teamHomeName.toUpperCase()}
             </p>
-            <EditableScore value={currentSetScore.home} onCommit={(v) => setScore(activeSet, 'home', v)} />
+            <EditableScore
+              value={currentSetScore.home}
+              onCommit={(v) => setScore(activeSet, 'home', v)}
+            />
           </div>
+
           <div className="flex flex-col items-center gap-2 pt-3">
             <span className="font-tech text-sm font-bold text-primary">×</span>
             <span className="rounded-full border border-primary/30 bg-primary/10 px-2.5 py-0.5 font-tech text-[10px] font-bold tracking-[0.18em] text-primary">
               SET {activeSet}
             </span>
-            <span className="font-tech text-[10px] font-bold text-slate-400">
-              SETS {setsWonHome}-{setsWonAway}
-            </span>
-            <div className="flex items-center gap-1.5" aria-hidden="true">
-              {pips.map((n) => (
-                <span
-                  key={n}
-                  className={`h-1.5 rounded-full transition-[width,background-color] duration-[250ms] ${
-                    n === activeSet ? 'w-4 bg-primary' : n < activeSet ? 'w-1.5 bg-primary/50' : 'w-1.5 bg-white/15'
-                  }`}
-                />
-              ))}
+            <div className="flex items-center gap-1.5 pt-1">
+              {pips.map((n) => {
+                const sh = setScores[n]?.home ?? 0;
+                const sa = setScores[n]?.away ?? 0;
+                const homeWon = sh > sa && sh > 0;
+                const awayWon = sa > sh && sa > 0;
+                return (
+                  <span
+                    key={n}
+                    className={`h-2 w-2 rounded-full ${
+                      homeWon
+                        ? 'bg-primary'
+                        : awayWon
+                          ? 'bg-magenta'
+                          : 'bg-white/15'
+                    }`}
+                    title={`Set ${n}: ${sh}x${sa}`}
+                  />
+                );
+              })}
             </div>
+            <p className="font-tech text-[10px] font-bold tracking-wide text-slate-400">
+              {setsWonHome} – {setsWonAway}
+            </p>
           </div>
+
           <div className="text-left">
-            <p className={`mb-1 text-[10px] font-semibold tracking-[0.2em] ${activeTeamSide === 'away' ? 'text-primary' : 'text-muted'}`}>
+            <p
+              className={`mb-1 text-[10px] font-semibold tracking-[0.2em] ${
+                activeTeamSide === 'away' ? 'text-primary' : 'text-muted'
+              }`}
+            >
               {teamAwayName.toUpperCase()}
             </p>
-            <EditableScore value={currentSetScore.away} onCommit={(v) => setScore(activeSet, 'away', v)} />
+            <EditableScore
+              value={currentSetScore.away}
+              onCommit={(v) => setScore(activeSet, 'away', v)}
+            />
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center justify-end gap-2">
+        <div className="flex flex-wrap items-center justify-end gap-2" data-print-hide="true">
           <div className="relative" ref={menuRef}>
             <button
               type="button"
               onClick={() => setMenuOpen((v) => !v)}
-              className="btn-press flex min-h-11 items-center gap-2 rounded-xl border border-success/30 bg-success/10 px-3.5 py-2 text-[11px] font-bold tracking-wide text-success hover:bg-success/20"
+              disabled={printing}
+              className="btn-press flex min-h-11 items-center gap-2 rounded-xl border border-success/30 bg-success/10 px-3.5 py-2 text-[11px] font-bold tracking-wide text-success hover:bg-success/20 disabled:opacity-50"
             >
-              <Save size={14} /> SALVAR PARTIDA
+              {printing ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+              {printing ? 'GERANDO…' : 'SALVAR PARTIDA'}
             </button>
 
             {menuOpen && (
@@ -190,26 +272,35 @@ export default function Scoreboard() {
                   <ShieldCheck size={15} className="text-primary" />
                   <span>
                     Salvar Partida (Staff)
-                    <span className="block text-[10px] font-normal text-slate-400">Registra oficialmente na liga</span>
+                    <span className="block text-[10px] font-normal text-slate-400">
+                      Registra oficialmente na liga
+                    </span>
                   </span>
                 </button>
+
                 <button
                   type="button"
-                  disabled
-                  title="Em breve"
-                  className="flex w-full cursor-not-allowed items-center gap-2 rounded-lg px-3 py-2.5 text-left text-xs font-bold text-slate-500"
+                  onClick={handlePrint}
+                  disabled={printing}
+                  className="flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-left text-xs font-bold text-ink hover:bg-primary/10 disabled:opacity-50"
                 >
-                  <Camera size={15} />
+                  <Camera size={15} className="text-cyan" />
                   <span>
                     Tirar Print
-                    <span className="block text-[10px] font-normal text-slate-500">Uso pessoal — em breve</span>
+                    <span className="block text-[10px] font-normal text-slate-400">
+                      Uso pessoal — não grava na liga
+                    </span>
                   </span>
                 </button>
               </div>
             )}
           </div>
 
-          <button type="button" onClick={() => resetSet(activeSet)} className="btn-press flex min-h-11 items-center gap-2 rounded-xl border border-danger/30 bg-danger/10 px-3.5 py-2 text-[11px] font-bold tracking-wide text-danger hover:bg-danger/20">
+          <button
+            type="button"
+            onClick={() => resetSet(activeSet)}
+            className="btn-press flex min-h-11 items-center gap-2 rounded-xl border border-danger/30 bg-danger/10 px-3.5 py-2 text-[11px] font-bold tracking-wide text-danger hover:bg-danger/20"
+          >
             <RotateCcw size={14} /> RESET SET
           </button>
         </div>

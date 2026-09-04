@@ -100,7 +100,7 @@ export default function Scoreboard() {
 
   const isAway = activeTeamSide === 'away';
 
-      async function handlePrint() {
+  async function handlePrint() {
     setMenuOpen(false);
     const root = document.getElementById('statsheet-root');
     if (!root) {
@@ -109,42 +109,28 @@ export default function Scoreboard() {
     }
 
     setPrinting(true);
-
-    // Guarda estilos atuais e força layout “desktop” completo pro print
-    const CAPTURE_WIDTH = 1400;
-    const prevRoot = {
-      width: root.style.width,
-      maxWidth: root.style.maxWidth,
-      minWidth: root.style.minWidth,
-      overflow: root.style.overflow,
-    };
-    const parent = root.parentElement;
-    const prevParentOverflow = parent?.style.overflow ?? '';
-
-    root.style.width = `${CAPTURE_WIDTH}px`;
-    root.style.maxWidth = `${CAPTURE_WIDTH}px`;
-    root.style.minWidth = `${CAPTURE_WIDTH}px`;
-    root.style.overflow = 'visible';
-    if (parent) parent.style.overflow = 'visible';
+    document.body.classList.add('is-printing');
 
     try {
-      // 2 frames: menu fecha + layout recalcula
+      // Deixa o CSS de print aplicar (esconde botões/mistakes e centraliza placar)
       await new Promise<void>((resolve) => {
         requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
       });
+      // Pequena pausa extra pro layout estabilizar
+      await new Promise((r) => setTimeout(r, 50));
 
-      // Altura real depois de expandir a largura
-      const captureHeight = Math.max(root.scrollHeight, root.offsetHeight);
+      const width = 1280;
+      const height = Math.max(root.scrollHeight, root.offsetHeight);
 
       const dataUrl = await domToPng(root, {
         backgroundColor: '#050b18',
         scale: 2,
-        width: CAPTURE_WIDTH,
-        height: captureHeight,
+        width,
+        height,
         style: {
-          width: `${CAPTURE_WIDTH}px`,
-          maxWidth: `${CAPTURE_WIDTH}px`,
-          minWidth: `${CAPTURE_WIDTH}px`,
+          width: `${width}px`,
+          maxWidth: `${width}px`,
+          minWidth: `${width}px`,
           transform: 'none',
           overflow: 'visible',
         },
@@ -170,20 +156,16 @@ export default function Scoreboard() {
       const msg = err instanceof Error ? err.message : String(err);
       alert(`Falha ao gerar o print:\n${msg}`);
     } finally {
-      // Restaura layout da tela
-      root.style.width = prevRoot.width;
-      root.style.maxWidth = prevRoot.maxWidth;
-      root.style.minWidth = prevRoot.minWidth;
-      root.style.overflow = prevRoot.overflow;
-      if (parent) parent.style.overflow = prevParentOverflow;
+      document.body.classList.remove('is-printing');
       setPrinting(false);
     }
   }
 
   return (
     <section className="hud-panel-hero tech-frame rounded-[22px] p-4 md:p-5">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-        <div className="flex flex-wrap items-center gap-2">
+      <div className="scoreboard-print-shell flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        {/* Controles esquerdos — fora do print */}
+        <div className="flex flex-wrap items-center gap-2" data-print-hide="true">
           <div className="flex items-center gap-1 rounded-xl border border-white/10 bg-white/[0.04] p-1">
             {([3, 5] as const).map((opt) => (
               <button
@@ -202,7 +184,6 @@ export default function Scoreboard() {
             ))}
           </div>
 
-          {/* TROCAR: casa = magenta; visitante = azul primary do site */}
           <button
             type="button"
             onClick={toggleTeamSide}
@@ -221,6 +202,7 @@ export default function Scoreboard() {
           </button>
         </div>
 
+        {/* Placar central — ENTRA no print */}
         <div className="flex items-center justify-center gap-5 md:gap-8">
           <div className="text-right">
             <p
@@ -251,11 +233,7 @@ export default function Scoreboard() {
                   <span
                     key={n}
                     className={`h-2 w-2 rounded-full ${
-                      homeWon
-                        ? 'bg-primary'
-                        : awayWon
-                          ? 'bg-magenta'
-                          : 'bg-white/15'
+                      homeWon ? 'bg-primary' : awayWon ? 'bg-magenta' : 'bg-white/15'
                     }`}
                     title={`Set ${n}: ${sh}x${sa}`}
                   />
@@ -282,6 +260,7 @@ export default function Scoreboard() {
           </div>
         </div>
 
+        {/* Ações direitas — fora do print */}
         <div className="flex flex-wrap items-center justify-end gap-2" data-print-hide="true">
           <div className="relative" ref={menuRef}>
             <button

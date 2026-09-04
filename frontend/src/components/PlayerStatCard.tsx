@@ -105,7 +105,7 @@ export default function PlayerStatCard({
           </div>
         </div>
 
-        <div className="flex shrink-0 items-center gap-1.5">
+        <div className="player-card-actions flex shrink-0 items-center gap-1.5">
           <button
             type="button"
             onClick={onClear}

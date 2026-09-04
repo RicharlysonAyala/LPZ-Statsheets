@@ -238,3 +238,27 @@ body {
   .live-dot, .num-pop, .stagger-in > *, .modal-in { animation: none !important; }
   .hud-panel-interactive, .btn-press, .meter-fill { transition: none !important; }
 }
+
+/* ---- Modo print (só enquanto gera o PNG) ---- */
+body.is-printing [data-print-hide="true"] {
+  display: none !important;
+}
+
+body.is-printing #statsheet-root {
+  width: 1280px !important;
+  max-width: 1280px !important;
+  min-width: 1280px !important;
+  padding: 24px !important;
+  margin: 0 auto !important;
+}
+
+/* Placar só com o centro (sem botões dos lados) */
+body.is-printing .scoreboard-print-shell {
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
+}
+
+body.is-printing .player-card-actions {
+  display: none !important;
+}

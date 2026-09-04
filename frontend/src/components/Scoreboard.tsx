@@ -109,16 +109,45 @@ export default function Scoreboard() {
     }
 
     setPrinting(true);
+
+    // Guarda estilos atuais e força layout “desktop” completo pro print
+    const CAPTURE_WIDTH = 1400;
+    const prevRoot = {
+      width: root.style.width,
+      maxWidth: root.style.maxWidth,
+      minWidth: root.style.minWidth,
+      overflow: root.style.overflow,
+    };
+    const parent = root.parentElement;
+    const prevParentOverflow = parent?.style.overflow ?? '';
+
+    root.style.width = `${CAPTURE_WIDTH}px`;
+    root.style.maxWidth = `${CAPTURE_WIDTH}px`;
+    root.style.minWidth = `${CAPTURE_WIDTH}px`;
+    root.style.overflow = 'visible';
+    if (parent) parent.style.overflow = 'visible';
+
     try {
-      // Espera o menu fechar
+      // 2 frames: menu fecha + layout recalcula
       await new Promise<void>((resolve) => {
         requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
       });
 
+      // Altura real depois de expandir a largura
+      const captureHeight = Math.max(root.scrollHeight, root.offsetHeight);
+
       const dataUrl = await domToPng(root, {
         backgroundColor: '#050b18',
-        scale: Math.min(2, window.devicePixelRatio || 2),
-        // modern-screenshot lida com oklab/oklch do Tailwind 4
+        scale: 2,
+        width: CAPTURE_WIDTH,
+        height: captureHeight,
+        style: {
+          width: `${CAPTURE_WIDTH}px`,
+          maxWidth: `${CAPTURE_WIDTH}px`,
+          minWidth: `${CAPTURE_WIDTH}px`,
+          transform: 'none',
+          overflow: 'visible',
+        },
         filter: (node) => {
           if (!(node instanceof HTMLElement)) return true;
           if (node.dataset?.printHide === 'true') return false;
@@ -141,6 +170,12 @@ export default function Scoreboard() {
       const msg = err instanceof Error ? err.message : String(err);
       alert(`Falha ao gerar o print:\n${msg}`);
     } finally {
+      // Restaura layout da tela
+      root.style.width = prevRoot.width;
+      root.style.maxWidth = prevRoot.maxWidth;
+      root.style.minWidth = prevRoot.minWidth;
+      root.style.overflow = prevRoot.overflow;
+      if (parent) parent.style.overflow = prevParentOverflow;
       setPrinting(false);
     }
   }

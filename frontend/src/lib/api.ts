@@ -1,9 +1,7 @@
-// Endereço do backend. Configure a variável de ambiente VITE_API_URL na
-// Vercel apontando pro seu backend do Render (ex: https://lpz-statsheets.onrender.com).
-// Em desenvolvimento local (npm run dev), crie um arquivo frontend/.env com
-// essa mesma variável — o painel de env vars da Vercel NÃO se aplica ao
-// "npm run dev" rodando na sua máquina, só ao site publicado.
-const API_BASE_URL = import.meta.env.VITE_API_URL ?? 'http://127.0.0.1:8000';
+// Configure VITE_API_URL na Vercel (e em frontend/.env no local):
+// VITE_API_URL=https://lpz-statsheets.onrender.com
+// SEM barra no final.
+const API_BASE_URL = (import.meta.env.VITE_API_URL ?? 'http://127.0.0.1:8000').replace(/\/$/, '');
 
 export interface SaveMatchLineupPayload {
   role: string;
@@ -52,24 +50,38 @@ export class ApiError extends Error {
 }
 
 export async function saveMatchStaff(payload: SaveMatchPayload): Promise<SaveMatchResponse> {
+  const url = `${API_BASE_URL}/matches/save-full`;
+
   let res: Response;
   try {
-    res = await fetch(`${API_BASE_URL}/matches/save-full`, {
+    res = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     });
-  } catch {
-    // Erro de REDE (não chegou nem a receber resposta do servidor).
-    // Motivos comuns: URL errada/vazia, backend fora do ar, ou CORS.
+  } catch (err) {
+    // Erro de rede / CORS / backend dormindo / URL errada
+    const hint =
+      err instanceof TypeError
+        ? ' (provável CORS, backend dormindo no Render free, ou URL errada)'
+        : '';
     throw new ApiError(
-      `Não foi possível conectar em ${API_BASE_URL}. Confira se essa é a URL certa do backend e se ele está no ar.`
+      `Não foi possível conectar em ${API_BASE_URL}.${hint} Confira VITE_API_URL e o CORS no backend.`
     );
   }
 
   if (!res.ok) {
-    const body = await res.json().catch(() => null);
-    throw new ApiError(body?.detail ?? `Erro ${res.status} ao salvar a partida.`, res.status);
+    let detail = `Erro ${res.status} ao salvar a partida.`;
+    try {
+      const body = await res.json();
+      if (typeof body?.detail === 'string') detail = body.detail;
+      else if (Array.isArray(body?.detail)) {
+        detail = body.detail.map((d: { msg?: string }) => d.msg ?? JSON.stringify(d)).join(' | ');
+      }
+    } catch {
+      // ignore
+    }
+    throw new ApiError(detail, res.status);
   }
 
   return res.json();

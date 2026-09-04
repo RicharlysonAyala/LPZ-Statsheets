@@ -23,16 +23,11 @@ const DEFAULT_ROSTER: [Role, string][] = [
 
 interface MatchState {
   format: 3 | 5;
-  activeSet: number; // 1..5, ou 0 para representar a aba FINAL
-  // Qual dos dois times está sendo preenchido/visualizado agora.
-  // O botão "TROCAR" alterna isso.
+  activeSet: number; // 1..5, ou 0 = aba FINAL
   activeTeamSide: TeamSide;
-  // Cada set tem SEU PRÓPRIO placar de pontos (ex: 25x13 no set 1).
   setScores: Record<number, { home: number; away: number }>;
   teamHomeName: string;
   teamAwayName: string;
-  // Agora existem DOIS rosters completos — um pra cada time — cada um
-  // com sua própria escalação/estatísticas por set.
   sets: {
     home: Record<number, Lineup[]>;
     away: Record<number, Lineup[]>;
@@ -41,6 +36,7 @@ interface MatchState {
   setActiveSet: (n: number) => void;
   setFormat: (f: 3 | 5) => void;
   toggleTeamSide: () => void;
+  setTeamName: (side: TeamSide, name: string) => void;
   incrementField: (setNumber: number, lineupId: string, field: keyof StatFields) => void;
   decrementField: (setNumber: number, lineupId: string, field: keyof StatFields) => void;
   setField: (setNumber: number, lineupId: string, field: keyof StatFields, value: number) => void;
@@ -68,20 +64,41 @@ export const useMatchStore = create<MatchState>((set, get) => ({
   format: 3,
   activeSet: 1,
   activeTeamSide: 'home',
-  setScores: { 1: { home: 0, away: 0 }, 2: { home: 0, away: 0 }, 3: { home: 0, away: 0 }, 4: { home: 0, away: 0 }, 5: { home: 0, away: 0 } },
-  teamHomeName: 'Time A',
-  teamAwayName: 'Time B',
-  sets: { home: buildInitialSets(), away: buildInitialSets() },
+  setScores: {
+    1: { home: 0, away: 0 },
+    2: { home: 0, away: 0 },
+    3: { home: 0, away: 0 },
+    4: { home: 0, away: 0 },
+    5: { home: 0, away: 0 },
+  },
+  teamHomeName: 'Time Casa',
+  teamAwayName: 'Time Visitante',
+  sets: {
+    home: buildInitialSets(),
+    away: buildInitialSets(),
+  },
 
   setActiveSet: (n) => set({ activeSet: n }),
+
   setFormat: (f) => set({ format: f }),
-  toggleTeamSide: () => set((s) => ({ activeTeamSide: s.activeTeamSide === 'home' ? 'away' : 'home' })),
+
+  toggleTeamSide: () =>
+    set({ activeTeamSide: get().activeTeamSide === 'home' ? 'away' : 'home' }),
+
+  setTeamName: (side, name) => {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    if (side === 'home') set({ teamHomeName: trimmed });
+    else set({ teamAwayName: trimmed });
+  },
 
   incrementField: (setNumber, lineupId, field) => {
     const side = get().activeTeamSide;
     const sideSets = { ...get().sets[side] };
     sideSets[setNumber] = sideSets[setNumber].map((l) =>
-      l.id === lineupId ? { ...l, stats: { ...l.stats, [field]: l.stats[field] + 1 } } : l
+      l.id === lineupId
+        ? { ...l, stats: { ...l.stats, [field]: l.stats[field] + 1 } }
+        : l
     );
     set({ sets: { ...get().sets, [side]: sideSets } });
   },
@@ -91,13 +108,18 @@ export const useMatchStore = create<MatchState>((set, get) => ({
     const sideSets = { ...get().sets[side] };
     sideSets[setNumber] = sideSets[setNumber].map((l) =>
       l.id === lineupId
-        ? { ...l, stats: { ...l.stats, [field]: Math.max(0, l.stats[field] - 1) } }
+        ? {
+            ...l,
+            stats: {
+              ...l.stats,
+              [field]: Math.max(0, l.stats[field] - 1),
+            },
+          }
         : l
     );
     set({ sets: { ...get().sets, [side]: sideSets } });
   },
 
-  // Permite digitar o valor direto no campo (em vez de só usar +/-).
   setField: (setNumber, lineupId, field, value) => {
     const side = get().activeTeamSide;
     const safeValue = Number.isFinite(value) ? Math.max(0, Math.round(value)) : 0;
@@ -108,14 +130,31 @@ export const useMatchStore = create<MatchState>((set, get) => ({
     set({ sets: { ...get().sets, [side]: sideSets } });
   },
 
+  /**
+   * RENAME = correção de nome da mesma pessoa.
+   * Propaga para TODOS os sets do mesmo lado onde aquele role ainda tem o nome antigo.
+   * Assim "Jogador 1" → "tone" some de todos os sets e o modal Staff não duplica.
+   */
   renamePlayer: (setNumber, lineupId, newName) => {
     const trimmed = newName.trim();
     if (!trimmed) return;
+
     const side = get().activeTeamSide;
     const sideSets = { ...get().sets[side] };
-    sideSets[setNumber] = sideSets[setNumber].map((l) =>
-      l.id === lineupId ? { ...l, player: trimmed } : l
-    );
+    const target = sideSets[setNumber]?.find((l) => l.id === lineupId);
+    if (!target) return;
+
+    const oldName = target.player;
+    const role = target.role;
+    if (oldName === trimmed) return;
+
+    // Atualiza todos os sets 1..5 desse lado
+    for (let i = 1; i <= 5; i++) {
+      sideSets[i] = (sideSets[i] ?? []).map((l) =>
+        l.role === role && l.player === oldName ? { ...l, player: trimmed } : l
+      );
+    }
+
     set({ sets: { ...get().sets, [side]: sideSets } });
   },
 
@@ -135,6 +174,10 @@ export const useMatchStore = create<MatchState>((set, get) => ({
     set({ setScores });
   },
 
+  /**
+   * SUB = troca de pessoa (identidade nova) nos sets escolhidos.
+   * Sets não selecionados mantêm o jogador antigo (é intencional).
+   */
   substitutePlayer: (role, outPlayer, inPlayer, applyToSets) => {
     const side = get().activeTeamSide;
     const sideSets = { ...get().sets[side] };

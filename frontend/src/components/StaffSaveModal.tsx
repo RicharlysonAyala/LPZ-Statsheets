@@ -9,29 +9,56 @@ interface Props {
 }
 
 interface UniquePlayer {
-  key: string; // "role__name", só pra usar como key do React
+  key: string; // role__name
   role: string;
   name: string;
 }
 
-// Monta a lista de jogadores ÚNICOS que apareceram em qualquer set de um
-// roster (isso já cobre substituições — quem entrou como sub também ganha
-// um campo pra digitar o Discord ID dele).
+function hasAnyStats(lineup: Lineup): boolean {
+  const s = lineup.stats;
+  return (
+    s.pontosFeitos +
+      s.pontosTomados +
+      s.block +
+      s.assistencias +
+      s.erroOfensivo +
+      s.erroDefensivo >
+    0
+  );
+}
+
+function isDefaultPlaceholder(name: string): boolean {
+  return /^Jogador\s+\d+$/i.test(name.trim());
+}
+
+/**
+ * Lista jogadores únicos que realmente importam pro save:
+ * - nome customizado (não "Jogador X"), OU
+ * - tem estatística em algum set
+ *
+ * Com o rename propagando, não deve mais aparecer "tone" + "Jogador 1".
+ */
 function collectUniquePlayers(sideSets: Record<number, Lineup[]>, format: number): UniquePlayer[] {
   const seen = new Map<string, UniquePlayer>();
+
   for (let setNumber = 1; setNumber <= format; setNumber++) {
     for (const lineup of sideSets[setNumber] ?? []) {
-      const key = `${lineup.role}__${lineup.player}`;
+      const name = lineup.player.trim();
+      if (!name) continue;
+
+      // Ignora placeholder puro sem stats
+      if (isDefaultPlaceholder(name) && !hasAnyStats(lineup)) continue;
+
+      const key = `${lineup.role}__${name}`;
       if (!seen.has(key)) {
-        seen.set(key, { key, role: lineup.role, name: lineup.player });
+        seen.set(key, { key, role: lineup.role, name });
       }
     }
   }
+
   return Array.from(seen.values());
 }
 
-// Um bloco de "cargo do time" + grade de jogadores com campo de Discord ID.
-// Reaproveitado duas vezes (casa e visitante) pra não duplicar JSX.
 function TeamRosterFields({
   label,
   teamName,
@@ -59,26 +86,26 @@ function TeamRosterFields({
       <input
         value={roleId}
         onChange={(e) => onRoleIdChange(e.target.value)}
-        placeholder="ID do cargo"
+        placeholder="ID do cargo do time no Discord"
         className="w-full mt-1 mb-4 rounded-lg bg-black/40 border border-primary/25 px-3 py-2 text-sm outline-none focus:border-primary"
       />
 
       {players.length === 0 ? (
         <p className="text-xs text-slate-500">
-          Nenhum jogador com estatística lançada ainda nesse lado. Preencha os cards primeiro.
+          Nenhum jogador com nome/estatística ainda nesse lado. Preencha os cards primeiro.
         </p>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           {players.map((p) => (
-            <div key={p.key}>
-              <label className="text-[10px] text-slate-500 font-semibold">
-                {p.role.toUpperCase()} · {p.name}
-              </label>
+            <div key={p.key} className="rounded-lg border border-white/10 bg-black/30 p-3">
+              <p className="text-[10px] font-bold tracking-wide text-slate-400">{p.role}</p>
+              <p className="text-sm font-bold text-ink mb-2 truncate">{p.name}</p>
+              <label className="text-[10px] text-slate-500 font-semibold">DISCORD ID</label>
               <input
                 value={discordIds[p.name] ?? ''}
                 onChange={(e) => onDiscordIdChange(p.name, e.target.value)}
-                placeholder="ID do Discord"
-                className="w-full mt-1 rounded-lg bg-black/40 border border-primary/25 px-3 py-2 text-sm outline-none focus:border-primary"
+                placeholder="ID numérico do Discord"
+                className="w-full mt-1 rounded-lg bg-black/40 border border-primary/25 px-3 py-1.5 text-sm outline-none focus:border-primary"
               />
             </div>
           ))}
@@ -104,6 +131,8 @@ export default function StaffSaveModal({ onClose }: Props) {
   const allFilled =
     teamHomeRoleId.trim() !== '' &&
     teamAwayRoleId.trim() !== '' &&
+    homePlayers.length > 0 &&
+    awayPlayers.length > 0 &&
     homePlayers.every((p) => (homeDiscordIds[p.name] ?? '').trim() !== '') &&
     awayPlayers.every((p) => (awayDiscordIds[p.name] ?? '').trim() !== '');
 
@@ -133,6 +162,8 @@ export default function StaffSaveModal({ onClose }: Props) {
     setStatus('saving');
     setErrorMessage('');
 
+    // Só envia os sets do formato atual (md3 = 1..3, md5 = 1..5)
+    // Placar de cada set vai junto em score_home / score_away
     const payload: SaveMatchPayload = {
       format,
       team_home_role_id: teamHomeRoleId.trim(),
@@ -151,7 +182,9 @@ export default function StaffSaveModal({ onClose }: Props) {
       setStatus('success');
     } catch (err) {
       setStatus('error');
-      setErrorMessage(err instanceof ApiError ? err.message : 'Não foi possível conectar ao servidor.');
+      setErrorMessage(
+        err instanceof ApiError ? err.message : 'Não foi possível conectar ao servidor.'
+      );
     }
   }
 
@@ -160,12 +193,14 @@ export default function StaffSaveModal({ onClose }: Props) {
       <div className="glass-panel glow-border w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl p-6">
         <div className="flex items-start justify-between mb-5">
           <div>
-            <h2 className="font-tech text-xl font-extrabold text-white text-glow">SALVAR PARTIDA (STAFF)</h2>
+            <h2 className="font-tech text-xl font-extrabold text-white text-glow">
+              SALVAR PARTIDA (STAFF)
+            </h2>
             <p className="text-xs text-slate-400">
-              Isso grava a partida de verdade no banco de dados e conta pra liga.
+              Grava a partida no banco (MD{format}) com placar e stats. Conta pra liga.
             </p>
           </div>
-          <button onClick={onClose} className="text-danger hover:opacity-70">
+          <button onClick={onClose} className="text-danger hover:opacity-70" type="button">
             <X size={20} />
           </button>
         </div>
@@ -177,6 +212,7 @@ export default function StaffSaveModal({ onClose }: Props) {
             <button
               onClick={onClose}
               className="mt-2 rounded-lg bg-gradient-to-r from-primary to-cyan px-4 py-2 text-sm font-bold text-[#03121f]"
+              type="button"
             >
               FECHAR
             </button>
@@ -190,7 +226,9 @@ export default function StaffSaveModal({ onClose }: Props) {
               onRoleIdChange={setTeamHomeRoleId}
               players={homePlayers}
               discordIds={homeDiscordIds}
-              onDiscordIdChange={(name, v) => setHomeDiscordIds((prev) => ({ ...prev, [name]: v }))}
+              onDiscordIdChange={(name, v) =>
+                setHomeDiscordIds((prev) => ({ ...prev, [name]: v }))
+              }
             />
 
             <TeamRosterFields
@@ -200,7 +238,9 @@ export default function StaffSaveModal({ onClose }: Props) {
               onRoleIdChange={setTeamAwayRoleId}
               players={awayPlayers}
               discordIds={awayDiscordIds}
-              onDiscordIdChange={(name, v) => setAwayDiscordIds((prev) => ({ ...prev, [name]: v }))}
+              onDiscordIdChange={(name, v) =>
+                setAwayDiscordIds((prev) => ({ ...prev, [name]: v }))
+              }
             />
 
             {status === 'error' && (
@@ -213,6 +253,7 @@ export default function StaffSaveModal({ onClose }: Props) {
               <button
                 onClick={onClose}
                 className="flex-1 rounded-lg border border-danger/40 text-danger py-2 text-sm font-bold hover:bg-danger/10"
+                type="button"
               >
                 CANCELAR
               </button>
@@ -220,6 +261,7 @@ export default function StaffSaveModal({ onClose }: Props) {
                 onClick={handleSubmit}
                 disabled={!allFilled || status === 'saving'}
                 className="flex-1 flex items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-primary to-cyan text-[#03121f] py-2 text-sm font-bold disabled:opacity-40 disabled:cursor-not-allowed hover:shadow-[0_0_20px_-4px_rgba(56,189,248,0.8)] transition-shadow"
+                type="button"
               >
                 {status === 'saving' && <Loader2 size={16} className="animate-spin" />}
                 CONFIRMAR E SALVAR

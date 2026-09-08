@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, ChevronRight, Lock, Pencil } from 'lucide-react';
+import { ArrowLeft, ChevronRight, Lock, Pencil, RefreshCw } from 'lucide-react';
 import {
   fetchTeam,
   fetchTeamMatches,
@@ -10,6 +10,7 @@ import {
   setStaffKey,
   type TeamCard,
   type MatchHistoryRow,
+  type RosterPlayer,
 } from '../lib/api';
 import Header from '../components/Header';
 
@@ -19,28 +20,42 @@ const SEASON = 'Season 5';
 export default function TeamDetailPage() {
   const { teamId } = useParams();
   const navigate = useNavigate();
+
   const [team, setTeam] = useState<TeamCard | null>(null);
   const [matches, setMatches] = useState<MatchHistoryRow[]>([]);
-  const [roster, setRoster] = useState<{ id: string; nickname: string }[]>([]);
+  const [roster, setRoster] = useState<RosterPlayer[]>([]);
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(true);
   const [staffOpen, setStaffOpen] = useState(false);
 
-  const reload = () => {
+  async function reload(force = false) {
     if (!teamId) return;
-    Promise.all([fetchTeam(teamId), fetchTeamMatches(teamId), fetchTeamRoster(teamId)])
-      .then(([t, m, r]) => {
-        setTeam(t);
-        setMatches(m);
-        setRoster(r as { id: string; nickname: string }[]);
-      })
-      .catch((e) => setError(e.message));
-  };
+    setLoading(true);
+    setError('');
+    try {
+      // Paralelo: não espera um acabar pra começar o outro
+      // force=true ignora cache (botão Atualizar)
+      const [t, m, r] = await Promise.all([
+        fetchTeam(teamId, { force }),
+        fetchTeamMatches(teamId, { force }),
+        fetchTeamRoster(teamId, { force }),
+      ]);
+      setTeam(t);
+      setMatches(m);
+      setRoster(r);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Erro ao carregar time');
+    } finally {
+      setLoading(false);
+    }
+  }
 
   useEffect(() => {
-    reload();
+    reload(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [teamId]);
 
-  if (!team && !error) {
+  if (loading && !team) {
     return (
       <div className="ambient-field min-h-screen p-6 text-muted">Carregando…</div>
     );
@@ -51,13 +66,24 @@ export default function TeamDetailPage() {
       <div className="ambient-inner mx-auto max-w-[1100px] space-y-6 p-4 md:p-6">
         <Header />
 
-        <button
-          type="button"
-          onClick={() => navigate('/teams')}
-          className="inline-flex items-center gap-1 text-xs font-semibold text-muted hover:text-primary"
-        >
-          <ArrowLeft size={14} /> Times
-        </button>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <button
+            type="button"
+            onClick={() => navigate('/teams')}
+            className="inline-flex items-center gap-1 text-xs font-semibold text-muted hover:text-primary"
+          >
+            <ArrowLeft size={14} /> Times
+          </button>
+
+          <button
+            type="button"
+            onClick={() => reload(true)}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 px-2.5 py-1.5 text-[11px] font-bold text-muted hover:text-primary"
+            title="Ignora cache e busca de novo"
+          >
+            <RefreshCw size={12} /> Atualizar
+          </button>
+        </div>
 
         {error && (
           <p className="rounded-lg border border-danger/30 bg-danger/10 px-3 py-2 text-xs text-danger">
@@ -140,7 +166,11 @@ export default function TeamDetailPage() {
                     <span className="flex min-w-0 items-center gap-2">
                       <span className="text-[10px] text-muted">vs</span>
                       {row.opponent.logo_url ? (
-                        <img src={row.opponent.logo_url} alt="" className="h-6 w-6 object-contain" />
+                        <img
+                          src={row.opponent.logo_url}
+                          alt=""
+                          className="h-6 w-6 object-contain"
+                        />
                       ) : (
                         <span
                           className="flex h-6 w-6 items-center justify-center rounded text-[10px] font-bold"
@@ -149,16 +179,24 @@ export default function TeamDetailPage() {
                           {row.opponent.name.slice(0, 1)}
                         </span>
                       )}
-                      <span className="truncate font-semibold text-ink">{row.opponent.name}</span>
+                      <span className="truncate font-semibold text-ink">
+                        {row.opponent.name}
+                      </span>
                     </span>
                     <span
                       className={`font-tech text-sm font-bold ${
-                        row.result.won ? 'text-success' : row.result.lost ? 'text-danger' : 'text-muted'
+                        row.result.won
+                          ? 'text-success'
+                          : row.result.lost
+                            ? 'text-danger'
+                            : 'text-muted'
                       }`}
                     >
                       {row.result.won ? 'W' : row.result.lost ? 'L' : '—'} {row.result.score}
                     </span>
-                    <span className="truncate text-xs text-muted">{row.sets_detail || '—'}</span>
+                    <span className="truncate text-xs text-muted">
+                      {row.sets_detail || '—'}
+                    </span>
                     <span className="text-xs font-bold text-primary">{row.division}</span>
                     <ChevronRight size={16} className="justify-self-end text-muted" />
                   </Link>
@@ -175,7 +213,7 @@ export default function TeamDetailPage() {
             onClose={() => setStaffOpen(false)}
             onSaved={() => {
               setStaffOpen(false);
-              reload();
+              reload(true);
             }}
           />
         )}
@@ -191,7 +229,7 @@ function StaffTeamModal({
   onSaved,
 }: {
   team: TeamCard;
-  roster: { id: string; nickname: string }[];
+  roster: RosterPlayer[];
   onClose: () => void;
   onSaved: () => void;
 }) {
@@ -298,7 +336,11 @@ function StaffTeamModal({
         )}
 
         {err && <p className="mt-2 text-xs text-danger">{err}</p>}
-        <button type="button" onClick={onClose} className="mt-3 w-full text-xs text-muted hover:text-ink">
+        <button
+          type="button"
+          onClick={onClose}
+          className="mt-3 w-full text-xs text-muted hover:text-ink"
+        >
           Fechar
         </button>
       </div>

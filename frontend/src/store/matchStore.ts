@@ -28,6 +28,7 @@ interface MatchState {
   setScores: Record<number, { home: number; away: number }>;
   teamHomeName: string;
   teamAwayName: string;
+  printArmId: number;
   sets: {
     home: Record<number, Lineup[]>;
     away: Record<number, Lineup[]>;
@@ -50,6 +51,7 @@ interface MatchState {
     applyToSets: number[]
   ) => void;
   resetSet: (setNumber: number) => void;
+  armPrintFinal: () => void;
 }
 
 function buildInitialSets(): Record<number, Lineup[]> {
@@ -73,6 +75,7 @@ export const useMatchStore = create<MatchState>((set, get) => ({
   },
   teamHomeName: 'Time Casa',
   teamAwayName: 'Time Visitante',
+  printArmId: 0,
   sets: {
     home: buildInitialSets(),
     away: buildInitialSets(),
@@ -193,7 +196,7 @@ export const useMatchStore = create<MatchState>((set, get) => ({
     });
     set({ sets: { ...get().sets, [side]: sideSets } });
   },
-
+  
   resetSet: (setNumber) => {
     const side = get().activeTeamSide;
     const sideSets = { ...get().sets[side] };
@@ -201,4 +204,5 @@ export const useMatchStore = create<MatchState>((set, get) => ({
     const setScores = { ...get().setScores, [setNumber]: { home: 0, away: 0 } };
     set({ sets: { ...get().sets, [side]: sideSets }, setScores });
   },
+  armPrintFinal: () => set((s) => ({ printArmId: s.printArmId + 1 })),
 }));

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import Header from '../components/Header';
 import Scoreboard from '../components/Scoreboard';
 import SetTabs from '../components/SetTabs';
@@ -13,6 +13,8 @@ import type { Role, StatFields } from '../types/stats';
 
 export default function MatchPage() {
   const [activeTab, setActiveTab] = useState<TabKey>(1);
+  const printArmId = useMatchStore((s) => s.printArmId);
+  const prevPrintArmId = useRef(0);
   const {
     sets,
     activeTeamSide,
@@ -38,6 +40,36 @@ export default function MatchPage() {
     setActiveTab(tab);
     if (typeof tab === 'number') setActiveSet(tab);
   }
+
+  // Quando o Scoreboard pede print, força a aba FINAL e libera a captura
+  useEffect(() => {
+    if (printArmId === 0 || printArmId === prevPrintArmId.current) return;
+    prevPrintArmId.current = printArmId;
+
+    const previousTab = activeTab;
+    setActiveTab('final');
+
+    let cancelled = false;
+
+    (async () => {
+      // 2 frames + delay curto: React pinta a tabela FINAL
+      await new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r())));
+      await new Promise((r) => setTimeout(r, 80));
+      if (cancelled) return;
+
+      window.dispatchEvent(new CustomEvent('lpz-print-ready'));
+
+      // Devolve a aba depois do capture (o Scoreboard espera ~mesmo tempo)
+      window.setTimeout(() => {
+        if (!cancelled) setActiveTab(previousTab);
+      }, 1200);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [printArmId]);
 
   return (
     <div className="ambient-field">

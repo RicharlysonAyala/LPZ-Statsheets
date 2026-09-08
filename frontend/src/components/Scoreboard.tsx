@@ -112,13 +112,21 @@ export default function Scoreboard() {
     document.body.classList.add('is-printing');
 
     try {
-      // Deixa o CSS de print aplicar (esconde botões/mistakes e centraliza placar)
-      await new Promise<void>((resolve) => {
-        requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+      // 1) Pede pra MatchPage ir pra aba FINAL
+      const ready = new Promise<void>((resolve, reject) => {
+        const t = window.setTimeout(() => reject(new Error('Timeout ao abrir a aba FINAL')), 5000);
+        const onReady = () => {
+          window.clearTimeout(t);
+          window.removeEventListener('lpz-print-ready', onReady);
+          resolve();
+        };
+        window.addEventListener('lpz-print-ready', onReady);
+        useMatchStore.getState().armPrintFinal();
       });
-      // Pequena pausa extra pro layout estabilizar
-      await new Promise((r) => setTimeout(r, 50));
 
+      await ready;
+
+      // 2) Captura já com a tabela FINAL visível
       const width = 1280;
       const height = Math.max(root.scrollHeight, root.offsetHeight);
 
@@ -143,7 +151,7 @@ export default function Scoreboard() {
       });
 
       const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
-      const filename = `lpz-statsheet-${teamHomeName}-vs-${teamAwayName}-set${activeSet}-${stamp}.png`
+      const filename = `lpz-statsheet-${teamHomeName}-vs-${teamAwayName}-final-${stamp}.png`
         .replace(/\s+/g, '_')
         .toLowerCase();
 
@@ -173,8 +181,8 @@ export default function Scoreboard() {
                 type="button"
                 onClick={() => setFormat(opt)}
                 className={`font-tech min-h-9 rounded-lg px-3 text-[11px] font-bold tracking-wide transition-colors ${format === opt
-                    ? 'bg-gradient-to-r from-primary to-cyan text-[#03121f]'
-                    : 'text-slate-400 hover:text-white'
+                  ? 'bg-gradient-to-r from-primary to-cyan text-[#03121f]'
+                  : 'text-slate-400 hover:text-white'
                   }`}
                 title={opt === 3 ? 'Melhor de 3 sets' : 'Melhor de 5 sets (playoffs)'}
               >
@@ -187,8 +195,8 @@ export default function Scoreboard() {
             type="button"
             onClick={toggleTeamSide}
             className={`btn-press flex min-h-11 items-center gap-2 whitespace-nowrap rounded-xl border px-3.5 py-2 text-[11px] font-bold tracking-wide transition-colors ${isAway
-                ? 'border-primary/40 bg-primary/15 text-primary hover:bg-primary/25'
-                : 'border-magenta/30 bg-magenta/10 text-magenta hover:bg-magenta/20'
+              ? 'border-primary/40 bg-primary/15 text-primary hover:bg-primary/25'
+              : 'border-magenta/30 bg-magenta/10 text-magenta hover:bg-magenta/20'
               }`}
             title="Alternar qual time você está preenchendo"
           >

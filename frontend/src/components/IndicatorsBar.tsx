@@ -25,7 +25,7 @@ export default function IndicatorsBar({ lineups }: Props) {
 
   const items = [
     { label: 'ERROS TOTAIS', value: totalErrors.toString(), meter: Math.min(100, totalErrors * 8) },
-    { label: 'PONTO FRACO', value: weakPoint, small: true, meter: worst ? 62 : 0 },
+    { label: 'PONTO FRACO', value: weakPoint, small: true, meter: worst ? 100 : 0 },
     { label: 'RATING MÉDIO', value: avgRating.toFixed(1), meter: avgRating * 10 },
     { label: 'DESEMPENHO', value: performance, small: true, meter: avgRating * 10 },
   ];

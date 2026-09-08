@@ -1,6 +1,7 @@
+import { Crown, AlertTriangle } from 'lucide-react';
 import { useMatchStore } from '../store/matchStore';
-import { calculateRating } from '../lib/scoring';
-import type { StatFields } from '../types/stats';
+import { calculateRating, calculateEfficiency } from '../lib/scoring';
+import type { Role, StatFields } from '../types/stats';
 
 interface AggregatedRow {
   key: string;
@@ -9,6 +10,7 @@ interface AggregatedRow {
   isSub: boolean;
   stats: StatFields;
   rating: number;
+  efficiency: number;
   hasData: boolean;
 }
 
@@ -23,13 +25,19 @@ function emptyStats(): StatFields {
   };
 }
 
+function ratingTone(rating: number, hasData: boolean): string {
+  if (!hasData || rating === 0) return 'text-muted';
+  if (rating >= 8) return 'text-success';
+  if (rating >= 5) return 'text-warning';
+  return 'text-danger';
+}
+
 export default function FinalTable() {
-  const { sets, format, activeTeamSide } = useMatchStore();
+  const { sets, format, activeTeamSide, teamHomeName, teamAwayName } = useMatchStore();
   const activeSets = sets[activeTeamSide];
+  const teamName = activeTeamSide === 'home' ? teamHomeName : teamAwayName;
   const setNumbers = Array.from({ length: format }, (_, i) => i + 1);
 
-  // Agrega estatísticas por (role + player) somando todos os sets
-  // (só do time ativo — o botão TROCAR muda qual roster aparece aqui)
   const map = new Map<string, AggregatedRow>();
   setNumbers.forEach((setNumber) => {
     (activeSets[setNumber] ?? []).forEach((lineup) => {
@@ -42,14 +50,20 @@ export default function FinalTable() {
           isSub: Boolean(lineup.subInfo),
           stats: emptyStats(),
           rating: 0,
+          efficiency: 0,
           hasData: false,
         });
       }
       const row = map.get(key)!;
       const totalActions =
-        lineup.stats.pontosFeitos + lineup.stats.pontosTomados + lineup.stats.block +
-        lineup.stats.assistencias + lineup.stats.erroOfensivo + lineup.stats.erroDefensivo;
+        lineup.stats.pontosFeitos +
+        lineup.stats.pontosTomados +
+        lineup.stats.block +
+        lineup.stats.assistencias +
+        lineup.stats.erroOfensivo +
+        lineup.stats.erroDefensivo;
       if (totalActions > 0) row.hasData = true;
+      if (lineup.subInfo) row.isSub = true;
 
       (Object.keys(row.stats) as (keyof StatFields)[]).forEach((field) => {
         row.stats[field] += lineup.stats[field];
@@ -57,10 +71,13 @@ export default function FinalTable() {
     });
   });
 
-  const rows = Array.from(map.values()).map((row) => ({
-    ...row,
-    rating: calculateRating(row.role as never, row.stats),
-  }));
+  const rows = Array.from(map.values())
+    .map((row) => {
+      const rating = calculateRating(row.role as Role, row.stats);
+      const efficiency = calculateEfficiency(row.stats);
+      return { ...row, rating, efficiency };
+    })
+    .sort((a, b) => b.rating - a.rating);
 
   const withData = rows.filter((r) => r.hasData);
   const mvp = withData.length
@@ -70,55 +87,176 @@ export default function FinalTable() {
     ? withData.reduce((a, b) => (b.rating < a.rating ? b : a))
     : null;
 
+  const avgRating =
+    withData.length > 0
+      ? withData.reduce((s, r) => s + r.rating, 0) / withData.length
+      : 0;
+
   return (
-    <div className="glass-panel rounded-2xl overflow-x-auto">
-      <table className="w-full text-sm">
-        <thead>
-          <tr className="text-left text-[10px] text-slate-400 font-bold tracking-wide border-b border-white/10">
-            <th className="px-4 py-3">JOGADOR</th>
-            <th className="px-4 py-3">P. FEITOS</th>
-            <th className="px-4 py-3">P. TOMADOS</th>
-            <th className="px-4 py-3">BLOCK</th>
-            <th className="px-4 py-3">ASSISTS</th>
-            <th className="px-4 py-3">E. OFENSIVO</th>
-            <th className="px-4 py-3">E. DEFENSIVO</th>
-            <th className="px-4 py-3">RATING</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row) => (
-            <tr key={row.key} className="border-b border-white/5 last:border-0 hover:bg-white/[0.03] transition-colors">
-              <td className="px-4 py-3 font-bold text-white">
-                {row.role} | {row.player}{' '}
-                {mvp && row.key === mvp.key && (
-                  <span className="ml-2 rounded bg-success/15 border border-success/30 text-success text-[10px] font-bold px-1.5 py-0.5 shadow-[0_0_10px_-3px_rgba(52,211,153,0.7)]">
-                    MVP
-                  </span>
-                )}
-                {worst && row.key === worst.key && worst.key !== mvp?.key && (
-                  <span className="ml-2 rounded bg-danger/15 border border-danger/30 text-danger text-[10px] font-bold px-1.5 py-0.5">
-                    WORST
-                  </span>
-                )}
-                {row.isSub && (
-                  <span className="ml-2 rounded bg-primary/15 border border-primary/30 text-primary text-[10px] font-bold px-1.5 py-0.5">
-                    SUB
-                  </span>
-                )}
-              </td>
-              <td className="px-4 py-3 text-slate-300 font-tech">{row.stats.pontosFeitos}</td>
-              <td className="px-4 py-3 text-slate-300 font-tech">{row.stats.pontosTomados}</td>
-              <td className="px-4 py-3 text-slate-300 font-tech">{row.stats.block}</td>
-              <td className="px-4 py-3 text-slate-300 font-tech">{row.stats.assistencias}</td>
-              <td className="px-4 py-3 text-slate-300 font-tech">{row.stats.erroOfensivo}</td>
-              <td className="px-4 py-3 text-slate-300 font-tech">{row.stats.erroDefensivo}</td>
-              <td className="px-4 py-3 font-tech font-bold text-warning">
-                {row.hasData ? row.rating.toFixed(1) : '0'}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+    <div className="space-y-4">
+      {/* Resumo */}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <div className="hud-panel rounded-[18px] px-4 py-3">
+          <p className="text-[10px] font-bold tracking-[0.18em] text-muted">TIME</p>
+          <p className="font-tech mt-1 truncate text-sm font-bold text-ink">
+            {teamName.toUpperCase()}
+          </p>
+        </div>
+        <div className="hud-panel rounded-[18px] px-4 py-3">
+          <p className="text-[10px] font-bold tracking-[0.18em] text-muted">RATING MÉDIO</p>
+          <p className={`font-tech mt-1 text-xl font-extrabold ${ratingTone(avgRating, withData.length > 0)}`}>
+            {withData.length ? avgRating.toFixed(1) : '—'}
+          </p>
+        </div>
+        <div className="hud-panel rounded-[18px] px-4 py-3">
+          <p className="text-[10px] font-bold tracking-[0.18em] text-muted">COM DADOS</p>
+          <p className="font-tech mt-1 text-xl font-extrabold text-primary">
+            {withData.length}
+            <span className="text-sm text-muted"> / {rows.length}</span>
+          </p>
+        </div>
+      </div>
+
+      {/* Destaques */}
+      {(mvp || worst) && (
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          {mvp && (
+            <div className="hud-panel relative overflow-hidden rounded-[18px] border border-success/25 px-4 py-3">
+              <div className="absolute left-0 top-0 h-full w-[3px] bg-success" />
+              <div className="flex items-center gap-2 text-success">
+                <Crown size={14} />
+                <span className="font-tech text-[10px] font-bold tracking-[0.16em]">MVP</span>
+              </div>
+              <p className="mt-1 truncate text-sm font-bold text-ink">
+                {mvp.player}
+                <span className="ml-2 text-[10px] font-semibold text-muted">{mvp.role}</span>
+              </p>
+              <p className="font-tech text-lg font-extrabold text-success">{mvp.rating.toFixed(1)}</p>
+            </div>
+          )}
+          {worst && worst.key !== mvp?.key && (
+            <div className="hud-panel relative overflow-hidden rounded-[18px] border border-danger/25 px-4 py-3">
+              <div className="absolute left-0 top-0 h-full w-[3px] bg-danger" />
+              <div className="flex items-center gap-2 text-danger">
+                <AlertTriangle size={14} />
+                <span className="font-tech text-[10px] font-bold tracking-[0.16em]">WORST</span>
+              </div>
+              <p className="mt-1 truncate text-sm font-bold text-ink">
+                {worst.player}
+                <span className="ml-2 text-[10px] font-semibold text-muted">{worst.role}</span>
+              </p>
+              <p className="font-tech text-lg font-extrabold text-danger">{worst.rating.toFixed(1)}</p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Tabela */}
+      <div className="hud-panel overflow-hidden rounded-[22px]">
+        <div className="flex items-center justify-between border-b border-white/8 px-4 py-3">
+          <p className="font-tech text-xs font-bold tracking-[0.2em] text-muted">
+            TABELA FINAL · MD{format}
+          </p>
+          <p className="text-[10px] text-muted">Soma de todos os sets</p>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[720px] border-collapse text-left">
+            <thead>
+              <tr className="border-b border-white/8 text-[10px] font-bold tracking-[0.14em] text-muted">
+                <th className="px-4 py-3 font-semibold">JOGADOR</th>
+                <th className="px-3 py-3 font-semibold">ROLE</th>
+                <th className="px-3 py-3 text-center font-semibold">PF</th>
+                <th className="px-3 py-3 text-center font-semibold">PT</th>
+                <th className="px-3 py-3 text-center font-semibold">BLK</th>
+                <th className="px-3 py-3 text-center font-semibold">AST</th>
+                <th className="px-3 py-3 text-center font-semibold">EO</th>
+                <th className="px-3 py-3 text-center font-semibold">ED</th>
+                <th className="px-3 py-3 text-center font-semibold">EFF</th>
+                <th className="px-4 py-3 text-right font-semibold">RATING</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((row) => {
+                const isMvp = mvp?.key === row.key;
+                const isWorst = worst?.key === row.key && worst.key !== mvp?.key;
+                return (
+                  <tr
+                    key={row.key}
+                    className={`border-b border-white/[0.04] transition-colors hover:bg-white/[0.03] ${
+                      isMvp ? 'bg-success/5' : isWorst ? 'bg-danger/5' : ''
+                    }`}
+                  >
+                    <td className="px-4 py-3">
+                      <div className="flex min-w-0 items-center gap-2">
+                        <span className="truncate text-sm font-bold text-ink">{row.player}</span>
+                        {row.isSub && (
+                          <span className="shrink-0 rounded-full border border-primary/30 bg-primary/10 px-1.5 py-0.5 text-[9px] font-bold text-primary">
+                            SUB
+                          </span>
+                        )}
+                        {isMvp && (
+                          <span className="shrink-0 rounded-full border border-success/30 bg-success/10 px-1.5 py-0.5 text-[9px] font-bold text-success">
+                            MVP
+                          </span>
+                        )}
+                        {isWorst && (
+                          <span className="shrink-0 rounded-full border border-danger/30 bg-danger/10 px-1.5 py-0.5 text-[9px] font-bold text-danger">
+                            WORST
+                          </span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-3 py-3">
+                      <span className="text-[11px] font-semibold text-muted">{row.role}</span>
+                    </td>
+                    <td className="font-tech px-3 py-3 text-center text-sm tabular-nums text-ink">
+                      {row.stats.pontosFeitos}
+                    </td>
+                    <td className="font-tech px-3 py-3 text-center text-sm tabular-nums text-ink">
+                      {row.stats.pontosTomados}
+                    </td>
+                    <td className="font-tech px-3 py-3 text-center text-sm tabular-nums text-ink">
+                      {row.stats.block}
+                    </td>
+                    <td className="font-tech px-3 py-3 text-center text-sm tabular-nums text-ink">
+                      {row.stats.assistencias}
+                    </td>
+                    <td className="font-tech px-3 py-3 text-center text-sm tabular-nums text-danger/90">
+                      {row.stats.erroOfensivo}
+                    </td>
+                    <td className="font-tech px-3 py-3 text-center text-sm tabular-nums text-danger/90">
+                      {row.stats.erroDefensivo}
+                    </td>
+                    <td className="font-tech px-3 py-3 text-center text-sm tabular-nums text-cyan">
+                      {row.hasData ? `${row.efficiency}%` : '—'}
+                    </td>
+                    <td
+                      className={`font-tech px-4 py-3 text-right text-base font-extrabold tabular-nums ${ratingTone(
+                        row.rating,
+                        row.hasData
+                      )}`}
+                    >
+                      {row.hasData ? row.rating.toFixed(1) : '—'}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+
+        {rows.length === 0 && (
+          <p className="px-4 py-10 text-center text-sm text-muted">
+            Nenhum jogador neste time ainda.
+          </p>
+        )}
+      </div>
+
+      <p className="px-1 text-[10px] text-muted">
+        PF pontos feitos · PT pontos tomados · BLK block · AST assistências · EO erro ofensivo · ED
+        erro defensivo · EFF eficiência
+      </p>
     </div>
   );
 }

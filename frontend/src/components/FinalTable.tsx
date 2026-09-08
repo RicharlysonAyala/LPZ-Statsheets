@@ -1,4 +1,3 @@
-import { Crown, AlertTriangle } from 'lucide-react';
 import { useMatchStore } from '../store/matchStore';
 import { calculateRating, calculateEfficiency } from '../lib/scoring';
 import type { Role, StatFields } from '../types/stats';
@@ -33,9 +32,8 @@ function ratingTone(rating: number, hasData: boolean): string {
 }
 
 export default function FinalTable() {
-  const { sets, format, activeTeamSide, teamHomeName, teamAwayName } = useMatchStore();
+  const { sets, format, activeTeamSide} = useMatchStore();
   const activeSets = sets[activeTeamSide];
-  const teamName = activeTeamSide === 'home' ? teamHomeName : teamAwayName;
   const setNumbers = Array.from({ length: format }, (_, i) => i + 1);
 
   const map = new Map<string, AggregatedRow>();
@@ -87,70 +85,8 @@ export default function FinalTable() {
     ? withData.reduce((a, b) => (b.rating < a.rating ? b : a))
     : null;
 
-  const avgRating =
-    withData.length > 0
-      ? withData.reduce((s, r) => s + r.rating, 0) / withData.length
-      : 0;
-
   return (
     <div className="space-y-4">
-      {/* Resumo */}
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <div className="hud-panel rounded-[18px] px-4 py-3">
-          <p className="text-[10px] font-bold tracking-[0.18em] text-muted">TIME</p>
-          <p className="font-tech mt-1 truncate text-sm font-bold text-ink">
-            {teamName.toUpperCase()}
-          </p>
-        </div>
-        <div className="hud-panel rounded-[18px] px-4 py-3">
-          <p className="text-[10px] font-bold tracking-[0.18em] text-muted">RATING MÉDIO</p>
-          <p className={`font-tech mt-1 text-xl font-extrabold ${ratingTone(avgRating, withData.length > 0)}`}>
-            {withData.length ? avgRating.toFixed(1) : '—'}
-          </p>
-        </div>
-        <div className="hud-panel rounded-[18px] px-4 py-3">
-          <p className="text-[10px] font-bold tracking-[0.18em] text-muted">COM DADOS</p>
-          <p className="font-tech mt-1 text-xl font-extrabold text-primary">
-            {withData.length}
-            <span className="text-sm text-muted"> / {rows.length}</span>
-          </p>
-        </div>
-      </div>
-
-      {/* Destaques */}
-      {(mvp || worst) && (
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          {mvp && (
-            <div className="hud-panel relative overflow-hidden rounded-[18px] border border-success/25 px-4 py-3">
-              <div className="absolute left-0 top-0 h-full w-[3px] bg-success" />
-              <div className="flex items-center gap-2 text-success">
-                <Crown size={14} />
-                <span className="font-tech text-[10px] font-bold tracking-[0.16em]">MVP</span>
-              </div>
-              <p className="mt-1 truncate text-sm font-bold text-ink">
-                {mvp.player}
-                <span className="ml-2 text-[10px] font-semibold text-muted">{mvp.role}</span>
-              </p>
-              <p className="font-tech text-lg font-extrabold text-success">{mvp.rating.toFixed(1)}</p>
-            </div>
-          )}
-          {worst && worst.key !== mvp?.key && (
-            <div className="hud-panel relative overflow-hidden rounded-[18px] border border-danger/25 px-4 py-3">
-              <div className="absolute left-0 top-0 h-full w-[3px] bg-danger" />
-              <div className="flex items-center gap-2 text-danger">
-                <AlertTriangle size={14} />
-                <span className="font-tech text-[10px] font-bold tracking-[0.16em]">WORST</span>
-              </div>
-              <p className="mt-1 truncate text-sm font-bold text-ink">
-                {worst.player}
-                <span className="ml-2 text-[10px] font-semibold text-muted">{worst.role}</span>
-              </p>
-              <p className="font-tech text-lg font-extrabold text-danger">{worst.rating.toFixed(1)}</p>
-            </div>
-          )}
-        </div>
-      )}
-
       {/* Tabela */}
       <div className="hud-panel overflow-hidden rounded-[22px]">
         <div className="flex items-center justify-between border-b border-white/8 px-4 py-3">

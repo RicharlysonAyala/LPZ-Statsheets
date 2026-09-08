@@ -14,6 +14,8 @@ COLUMNS_TO_ENSURE = [
     ("teams", "primary_color", "VARCHAR(7) DEFAULT '#38bdf8'"),
     ("teams", "discord_role_id", "VARCHAR(32)"),
     ("teams", "created_at", "TIMESTAMPTZ DEFAULT NOW()"),
+    ("teams", "division", "VARCHAR(20)"),
+    ("teams", "captain_player_id", "VARCHAR"),
     # players
     ("players", "discord_id", "VARCHAR(32)"),
     ("players", "discord_avatar_url", "VARCHAR"),
@@ -35,6 +37,7 @@ COLUMNS_TO_ENSURE = [
     ("matches", "status", "VARCHAR(15) DEFAULT 'in_progress'"),
     ("matches", "created_at", "TIMESTAMPTZ DEFAULT NOW()"),
     ("matches", "finished_at", "TIMESTAMPTZ"),
+    ("matches", "round_label", "VARCHAR(20)"),
     # match_sets
     ("match_sets", "match_id", "VARCHAR"),
     ("match_sets", "set_number", "SMALLINT"),

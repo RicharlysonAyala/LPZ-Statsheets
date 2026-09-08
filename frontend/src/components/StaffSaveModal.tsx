@@ -14,6 +14,17 @@ interface UniquePlayer {
   name: string;
 }
 
+const ROUND_OPTIONS = [
+  'Week 1',
+  'Week 2',
+  'Week 3',
+  'Week 4',
+  'R1',
+  'R2',
+  'SF',
+  'FINAL',
+] as const;
+
 function hasAnyStats(lineup: Lineup): boolean {
   const s = lineup.stats;
   return (
@@ -35,8 +46,6 @@ function isDefaultPlaceholder(name: string): boolean {
  * Lista jogadores únicos que realmente importam pro save:
  * - nome customizado (não "Jogador X"), OU
  * - tem estatística em algum set
- *
- * Com o rename propagando, não deve mais aparecer "tone" + "Jogador 1".
  */
 function collectUniquePlayers(sideSets: Record<number, Lineup[]>, format: number): UniquePlayer[] {
   const seen = new Map<string, UniquePlayer>();
@@ -46,7 +55,6 @@ function collectUniquePlayers(sideSets: Record<number, Lineup[]>, format: number
       const name = lineup.player.trim();
       if (!name) continue;
 
-      // Ignora placeholder puro sem stats
       if (isDefaultPlaceholder(name) && !hasAnyStats(lineup)) continue;
 
       const key = `${lineup.role}__${name}`;
@@ -125,12 +133,14 @@ export default function StaffSaveModal({ onClose }: Props) {
   const [teamAwayRoleId, setTeamAwayRoleId] = useState('');
   const [homeDiscordIds, setHomeDiscordIds] = useState<Record<string, string>>({});
   const [awayDiscordIds, setAwayDiscordIds] = useState<Record<string, string>>({});
+  const [roundLabel, setRoundLabel] = useState<string>('Week 1');
   const [status, setStatus] = useState<'idle' | 'saving' | 'success' | 'error'>('idle');
   const [errorMessage, setErrorMessage] = useState('');
 
   const allFilled =
     teamHomeRoleId.trim() !== '' &&
     teamAwayRoleId.trim() !== '' &&
+    roundLabel.trim() !== '' &&
     homePlayers.length > 0 &&
     awayPlayers.length > 0 &&
     homePlayers.every((p) => (homeDiscordIds[p.name] ?? '').trim() !== '') &&
@@ -162,12 +172,11 @@ export default function StaffSaveModal({ onClose }: Props) {
     setStatus('saving');
     setErrorMessage('');
 
-    // Só envia os sets do formato atual (md3 = 1..3, md5 = 1..5)
-    // Placar de cada set vai junto em score_home / score_away
     const payload: SaveMatchPayload = {
       format,
       team_home_role_id: teamHomeRoleId.trim(),
       team_away_role_id: teamAwayRoleId.trim(),
+      round_label: roundLabel,
       sets: Array.from({ length: format }, (_, i) => i + 1).map((setNumber) => ({
         set_number: setNumber,
         score_home: setScores[setNumber]?.home ?? 0,
@@ -197,7 +206,7 @@ export default function StaffSaveModal({ onClose }: Props) {
               SALVAR PARTIDA (STAFF)
             </h2>
             <p className="text-xs text-slate-400">
-              Grava a partida no banco (MD{format}) com placar e stats. Conta pra liga.
+              Grava a partida no banco (MD{format}) com placar, round e stats. Conta pra liga.
             </p>
           </div>
           <button onClick={onClose} className="text-danger hover:opacity-70" type="button">
@@ -219,6 +228,25 @@ export default function StaffSaveModal({ onClose }: Props) {
           </div>
         ) : (
           <>
+            {/* ROUND */}
+            <div className="mb-5 rounded-xl border border-white/10 bg-black/20 p-4">
+              <label className="text-[10px] text-slate-500 font-semibold">ROUND</label>
+              <select
+                value={roundLabel}
+                onChange={(e) => setRoundLabel(e.target.value)}
+                className="mt-1 w-full rounded-lg border border-primary/25 bg-black/40 px-3 py-2 text-sm outline-none focus:border-primary"
+              >
+                {ROUND_OPTIONS.map((r) => (
+                  <option key={r} value={r}>
+                    {r}
+                  </option>
+                ))}
+              </select>
+              <p className="mt-1.5 text-[10px] text-slate-500">
+                Week 1–4 (fase de grupos) · R1 / R2 / SF / FINAL (playoffs)
+              </p>
+            </div>
+
             <TeamRosterFields
               label="TIME DA CASA"
               teamName={teamHomeName}

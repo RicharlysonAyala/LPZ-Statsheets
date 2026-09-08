@@ -18,12 +18,6 @@ def create_team(payload: TeamCreate, db: Session = Depends(get_db)):
     db.refresh(team)
     return team
 
-
-@router.get("/teams")
-def list_teams(db: Session = Depends(get_db)):
-    return db.query(Team).all()
-
-
 @router.post("/players")
 def create_player(payload: PlayerCreate, db: Session = Depends(get_db)):
     player = Player(nickname=payload.nickname, team_id=payload.team_id)

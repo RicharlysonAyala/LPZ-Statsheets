@@ -74,4 +74,11 @@ class SaveMatchIn(BaseModel):
     format: Literal[3, 5]
     team_home_role_id: str = Field(min_length=1)
     team_away_role_id: str = Field(min_length=1)
+    round_label: Optional[str] = None  # "Week 1" | "R1" | "SF" | "FINAL" ...
     sets: list[SaveMatchSetIn]
+
+class TeamStaffUpdate(BaseModel):
+    logo_url: Optional[str] = None
+    primary_color: Optional[str] = None
+    division: Optional[str] = None
+    captain_player_id: Optional[str] = None

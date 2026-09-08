@@ -30,6 +30,7 @@ export interface SaveMatchPayload {
   format: 3 | 5;
   team_home_role_id: string;
   team_away_role_id: string;
+  round_label?: string;
   sets: SaveMatchSetPayload[];
 }
 
@@ -85,4 +86,86 @@ export async function saveMatchStaff(payload: SaveMatchPayload): Promise<SaveMat
   }
 
   return res.json();
+}
+
+export function getStaffKey(): string {
+  return localStorage.getItem('lpz_staff_key') ?? '';
+}
+
+export function setStaffKey(key: string) {
+  localStorage.setItem('lpz_staff_key', key.trim());
+}
+
+export function clearStaffKey() {
+  localStorage.removeItem('lpz_staff_key');
+}
+
+export function isStaffUnlocked(): boolean {
+  return getStaffKey().length > 0;
+}
+
+async function apiFetch(path: string, init: RequestInit = {}) {
+  const headers = new Headers(init.headers || {});
+  if (!headers.has('Content-Type') && init.body) {
+    headers.set('Content-Type', 'application/json');
+  }
+  const key = getStaffKey();
+  if (key) headers.set('X-Staff-Key', key);
+
+  const res = await fetch(`${API_BASE_URL}${path}`, { ...init, headers });
+  if (!res.ok) {
+    const body = await res.json().catch(() => null);
+    throw new Error(body?.detail ?? `Erro ${res.status}`);
+  }
+  return res.json();
+}
+
+export interface TeamCard {
+  id: string;
+  name: string;
+  logo_url: string | null;
+  primary_color: string;
+  discord_role_id: string | null;
+  division: string | null;
+  player_count: number;
+  captain: { id: string; nickname: string; discord_avatar_url: string | null } | null;
+}
+
+export interface MatchHistoryRow {
+  match_id: string;
+  round_label: string;
+  opponent: {
+    id: string | null;
+    name: string;
+    logo_url: string | null;
+    primary_color: string;
+  };
+  result: { won: boolean; lost: boolean; score: string };
+  sets_detail: string;
+  division: string;
+  format: number;
+  finished_at: string | null;
+}
+
+export const fetchTeams = () => apiFetch('/teams') as Promise<TeamCard[]>;
+export const fetchTeam = (id: string) => apiFetch(`/teams/${id}`) as Promise<TeamCard>;
+export const fetchTeamMatches = (id: string) =>
+  apiFetch(`/teams/${id}/matches`) as Promise<MatchHistoryRow[]>;
+export const fetchTeamRoster = (id: string) => apiFetch(`/teams/${id}/roster`);
+export const fetchMatchStatsheet = (matchId: string) =>
+  apiFetch(`/teams/matches/${matchId}/statsheet`);
+
+export function staffUpdateTeam(
+  id: string,
+  payload: {
+    logo_url?: string | null;
+    primary_color?: string | null;
+    division?: string | null;
+    captain_player_id?: string | null;
+  }
+) {
+  return apiFetch(`/teams/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
+  }) as Promise<TeamCard>;
 }

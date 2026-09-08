@@ -103,17 +103,16 @@ export default function MatchPage() {
 
         {activeTab === 'times' && (
           <div className="hud-panel rounded-[22px] px-6 py-14 text-center">
-            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl border border-primary/25 bg-primary/10">
-              <svg width="28" height="28" viewBox="0 0 32 32" fill="none" aria-hidden="true">
-                <circle cx="16" cy="16" r="11" stroke="#38bdf8" strokeWidth="1.6" />
-                <path d="M16 5c3.2 2.8 5 6.6 5 11s-1.8 8.2-5 11C12.8 24.2 11 20.4 11 16S12.8 7.8 16 5Z" stroke="#22d3ee" strokeWidth="1.3" />
-                <path d="M5.5 16h21M8.4 10.2c4.4 1.6 10.8 1.6 15.2 0M8.4 21.8c4.4-1.6 10.8-1.6 15.2 0" stroke="#7dd3fc" strokeWidth="1.2" />
-              </svg>
-            </div>
             <p className="font-tech text-sm font-bold tracking-wide text-ink">TIMES</p>
             <p className="mx-auto mt-2 max-w-md text-sm text-muted">
-              Em breve: histórico de jogos e desempenho por time.
+              Lista de times, match history e statsheets salvas.
             </p>
+            <a
+              href="/teams"
+              className="mt-5 inline-flex rounded-xl bg-gradient-to-r from-primary to-cyan px-5 py-2.5 text-sm font-bold text-[#03121f]"
+            >
+              Abrir aba Times
+            </a>
           </div>
         )}
 

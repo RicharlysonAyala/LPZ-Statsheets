@@ -102,6 +102,7 @@ def save_full_match(payload: SaveMatchIn, db: Session = Depends(get_db)):
         team_home_id=home_team.id,
         team_away_id=away_team.id,
         format=payload.format,
+        round_label=payload.round_label,
         stat_mode="basic",
         status="finished",
         finished_at=datetime.now(timezone.utc),

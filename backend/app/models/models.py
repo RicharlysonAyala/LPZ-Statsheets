@@ -16,6 +16,8 @@ class Team(Base):
     primary_color = Column(String(7), nullable=False, default="#38bdf8")
     discord_role_id = Column(String(32), unique=True, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+    division = Column(String(20), nullable=True)  # ex: "DIV 1", "OPEN"
+    captain_player_id = Column(String, ForeignKey("players.id"), nullable=True)
 
 
 class Player(Base):

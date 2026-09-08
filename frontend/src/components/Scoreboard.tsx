@@ -126,6 +126,9 @@ export default function Scoreboard() {
 
       await ready;
 
+      await new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r())));
+      await new Promise((r) => setTimeout(r, 100));
+
       // 2) Captura já com a tabela FINAL visível
       const width = 1280;
       const height = Math.max(root.scrollHeight, root.offsetHeight);

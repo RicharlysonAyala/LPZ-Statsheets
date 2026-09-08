@@ -52,17 +52,17 @@ export default function MatchPage() {
     let cancelled = false;
 
     (async () => {
-      // 2 frames + delay curto: React pinta a tabela FINAL
+      // Espera o React montar a aba FINAL + layout dos cards (rating / desempenho)
       await new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r())));
-      await new Promise((r) => setTimeout(r, 80));
+      await new Promise((r) => setTimeout(r, 350)); // era ~80ms — curto demais
       if (cancelled) return;
 
       window.dispatchEvent(new CustomEvent('lpz-print-ready'));
 
-      // Devolve a aba depois do capture (o Scoreboard espera ~mesmo tempo)
+      // Tempo pra terminar o download antes de voltar a aba
       window.setTimeout(() => {
         if (!cancelled) setActiveTab(previousTab);
-      }, 1200);
+      }, 1800);
     })();
 
     return () => {
